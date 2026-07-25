@@ -1,0 +1,70 @@
+{
+  "schema": "pretty_break_reference_fixture_v1",
+  "sources": {
+    "qgis": {
+      "version": "4.2.0-Belém do Pará",
+      "revision": "ec9a7f91",
+      "api": "QgsSymbolLayerUtils.prettyBreaks"
+    },
+    "r": {
+      "version": "4.6.0",
+      "api": "base::pretty"
+    }
+  },
+  "cases": [
+    {
+      "name": "positive",
+      "minimum": 1.0,
+      "maximum": 15.0,
+      "requested_classes": 5,
+      "qgis_upper_bounds": [2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 15.0],
+      "r_boundaries": [0.0, 2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0],
+      "crate_upper_bounds": ["2", "4", "6", "8", "10", "12", "14", "16"]
+    },
+    {
+      "name": "negative",
+      "minimum": -9.0,
+      "maximum": -1.0,
+      "requested_classes": 5,
+      "qgis_upper_bounds": [-8.0, -6.0, -4.0, -2.0, -1.0],
+      "r_boundaries": [-10.0, -8.0, -6.0, -4.0, -2.0, 0.0],
+      "crate_upper_bounds": ["-8", "-6", "-4", "-2", "0"]
+    },
+    {
+      "name": "crossing_zero",
+      "minimum": -3.2,
+      "maximum": 8.1,
+      "requested_classes": 5,
+      "qgis_upper_bounds": [-2.0, 0.0, 2.0, 4.0, 6.0, 8.0, 8.1],
+      "r_boundaries": [-4.0, -2.0, 0.0, 2.0, 4.0, 6.0, 8.0, 10.0],
+      "crate_upper_bounds": ["-2", "0", "2", "4", "6", "8", "10"]
+    },
+    {
+      "name": "tiny",
+      "minimum": 1e-9,
+      "maximum": 6e-9,
+      "requested_classes": 4,
+      "qgis_upper_bounds": [6e-9],
+      "r_boundaries": [1e-9, 2e-9, 3e-9, 4e-9, 5e-9, 6e-9],
+      "crate_upper_bounds": ["2e-9", "3.0000000000000004e-9", "4e-9", "5e-9", "6.000000000000001e-9"]
+    },
+    {
+      "name": "huge",
+      "minimum": 1e90,
+      "maximum": 6e90,
+      "requested_classes": 4,
+      "qgis_upper_bounds": [2e90, 3e90, 4e90, 5e90, 6e90],
+      "r_boundaries": [1e90, 2e90, 3e90, 4e90, 5e90, 6e90],
+      "crate_upper_bounds": ["2e90", "3e90", "4e90", "4.9999999999999995e90", "6e90"]
+    },
+    {
+      "name": "degenerate",
+      "minimum": 4.0,
+      "maximum": 4.0,
+      "requested_classes": 5,
+      "qgis_upper_bounds": [4.0],
+      "r_boundaries": [0.0, 5.0],
+      "crate_upper_bounds": ["4"]
+    }
+  ]
+}

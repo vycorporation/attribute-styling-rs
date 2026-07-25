@@ -6,11 +6,15 @@
 
 mod filter;
 mod model;
+mod pretty;
 mod ramp;
 mod style;
 
+pub(crate) const MAXIMUM_CLASSES: usize = 4096;
+
 pub use filter::{Comparison, ComparisonOperator, FilterExpression, evaluate_filter};
 pub use model::{AttributeValue, FeatureRecord, FiniteF64};
+pub use pretty::{PRETTY_BREAKS_IDENTITY, pretty_upper_bounds};
 pub use ramp::{
     BUILT_IN_RAMP_CATALOG_IDENTITY, BuiltInRamp, BuiltInRampKind,
     CUSTOM_RAMP_INTERPOLATION_IDENTITY, ColorRamp, ColorStop, Rgba, built_in_ramps,
@@ -67,6 +71,12 @@ pub enum StylingError {
         /// Maximum supported class count.
         maximum: usize,
     },
+    /// Pretty-break bounds were supplied in decreasing order.
+    #[error("pretty-break minimum must not exceed its maximum")]
+    InvalidPrettyRange,
+    /// Finite pretty-break inputs could not produce finite covering bounds.
+    #[error("pretty-break range cannot be represented with finite covering bounds")]
+    UnrepresentablePrettyRange,
     /// Manual upper bounds were empty, non-finite, or not strictly increasing.
     #[error("manual upper bounds must be finite and strictly increasing")]
     UnorderedManualBreaks,

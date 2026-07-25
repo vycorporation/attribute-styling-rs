@@ -6,7 +6,8 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AttributeValue, ColorRamp, FeatureRecord, FilterExpression, Rgba, StylingError, evaluate_filter,
+    AttributeValue, ColorRamp, FeatureRecord, FilterExpression, FiniteF64, MAXIMUM_CLASSES, Rgba,
+    StylingError, evaluate_filter, pretty_upper_bounds,
 };
 
 /// A numerical class-break algorithm.
@@ -21,6 +22,11 @@ pub enum Classifier {
     /// Equal-count targets without splitting tied values.
     Quantile {
         /// Requested class count.
+        classes: usize,
+    },
+    /// Round decimal intervals whose bounds cover the observed range.
+    Pretty {
+        /// Requested approximate class count.
         classes: usize,
     },
     /// Caller-supplied inclusive upper bounds.
@@ -417,6 +423,18 @@ fn resolve_numeric(
             require_class_count(*classes)?;
             (Some(*classes), quantile_breaks(&sorted, *classes))
         }
+        Classifier::Pretty { classes } => {
+            require_class_count(*classes)?;
+            let minimum = FiniteF64::new(sorted[0])?;
+            let maximum = FiniteF64::new(*sorted.last().expect("non-empty"))?;
+            (
+                Some(*classes),
+                pretty_upper_bounds(minimum, maximum, *classes)?
+                    .into_iter()
+                    .map(FiniteF64::get)
+                    .collect(),
+            )
+        }
         Classifier::Manual { upper_bounds } => {
             validate_manual_breaks(upper_bounds, *sorted.last().expect("non-empty"))?;
             (Some(upper_bounds.len()), upper_bounds.clone())
@@ -531,7 +549,6 @@ fn selected_numeric_values<'a>(
 }
 
 fn require_class_count(classes: usize) -> Result<(), StylingError> {
-    const MAXIMUM_CLASSES: usize = 4096;
     if classes == 0 {
         Err(StylingError::ZeroClasses)
     } else if classes > MAXIMUM_CLASSES {
