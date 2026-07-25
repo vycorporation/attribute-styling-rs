@@ -427,7 +427,6 @@ impl ColorRamp {
     /// Categorical presets return their exact fixed colors and reject requests
     /// above their documented capacity. Continuous presets use their pinned
     /// rational sampling rule, except that a one-color request samples the
-    /// midpoint. Custom ramps and the legacy Viridis variant use evenly spaced
     /// midpoint. Fixed ramps return their first `count` colors exactly and
     /// reject requests above their capacity. Custom ramps and the legacy
     /// Viridis variant use evenly spaced
