@@ -139,6 +139,12 @@ first or final returned class break to the observed range and imposes a
 larger fixed minimum cell. Degenerate behavior also differs. These references
 inform the crate-owned contract; the crate does not claim QGIS or R parity.
 
+Fixed ramps contain an ordered, bounded set of exact RGBA colors. They support
+only discrete sampling, return the first requested colors in source order,
+and reject requests above their capacity. Reversal reverses the selected
+fixed sequence. The optional `.stylx` adapter returns this ordinary crate-owned
+variant without exposing SQLite or CIM types.
+
 ## Deferred reference classifiers
 
 Jenks natural breaks and standard-deviation classification are not aliases for

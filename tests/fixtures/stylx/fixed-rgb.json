@@ -1,0 +1,26 @@
+{
+  "type": "CIMFixedColorRamp",
+  "colorSpace": {
+    "type": "CIMICCColorSpace",
+    "url": "Default RGB"
+  },
+  "colors": [
+    {
+      "type": "CIMRGBColor",
+      "colorSpace": {
+        "type": "CIMICCColorSpace",
+        "url": "Default RGB"
+      },
+      "values": [37.999999999999936, 12.999999999999989, 64.000000000000071, 100]
+    },
+    {
+      "type": "CIMRGBColor",
+      "values": [128, 64, 32, 80]
+    },
+    {
+      "type": "CIMRGBColor",
+      "values": [255, 255, 255, 0]
+    }
+  ],
+  "arrangement": "Default"
+}
