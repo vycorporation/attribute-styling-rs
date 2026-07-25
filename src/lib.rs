@@ -1,84 +1,23 @@
-//! Renderer-neutral attribute filtering, classification, and style resolution.
+//! Renderer-neutral attribute filtering, classification, color ramps, and
+//! immutable style resolution.
 //!
-//! The crate owns typed attribute and styling contracts. Consumers retain
-//! responsibility for adapting storage and applying resolved styles to a
-//! renderer.
+//! Consumers adapt their own storage into crate-owned records and apply the
+//! resulting plan with their own renderer.
 
-use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
+mod filter;
+mod model;
+mod ramp;
+mod style;
+
+pub use filter::{Comparison, ComparisonOperator, FilterExpression, evaluate_filter};
+pub use model::{AttributeValue, FeatureRecord, FiniteF64};
+pub use ramp::{ColorRamp, ColorStop, Rgba};
+pub use style::{
+    Classification, Classifier, FeatureStyleAssignment, FilterOutcome, ResolvedStylePlan,
+    StyleClass, StyleSpec, resolve_style,
+};
+
 use thiserror::Error;
-
-/// A dependency-neutral scalar attribute value.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case", tag = "type", content = "value")]
-pub enum AttributeValue {
-    /// A missing value.
-    Null,
-    /// A Boolean value.
-    Boolean(bool),
-    /// A signed integer value.
-    Signed(i64),
-    /// An unsigned integer value.
-    Unsigned(u64),
-    /// A finite floating-point value.
-    Float(FiniteF64),
-    /// A UTF-8 string value.
-    Text(String),
-}
-
-impl AttributeValue {
-    /// Constructs a floating-point attribute after rejecting NaN and infinity.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`StylingError::NonFiniteNumber`] when `value` is NaN or
-    /// infinite.
-    pub fn try_f64(value: f64) -> Result<Self, StylingError> {
-        FiniteF64::new(value).map(Self::Float)
-    }
-}
-
-/// A finite floating-point attribute value.
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
-pub struct FiniteF64(f64);
-
-impl FiniteF64 {
-    /// Validates a finite floating-point value.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`StylingError::NonFiniteNumber`] for NaN or infinity.
-    pub fn new(value: f64) -> Result<Self, StylingError> {
-        value
-            .is_finite()
-            .then_some(Self(value))
-            .ok_or(StylingError::NonFiniteNumber)
-    }
-
-    /// Returns the validated finite value.
-    #[must_use]
-    pub const fn get(self) -> f64 {
-        self.0
-    }
-}
-
-impl Serialize for FiniteF64 {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_f64(self.0)
-    }
-}
-
-impl<'de> Deserialize<'de> for FiniteF64 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let value = f64::deserialize(deserializer)?;
-        Self::new(value).map_err(de::Error::custom)
-    }
-}
 
 /// Failures while validating or resolving an attribute style.
 #[derive(Clone, Debug, Error, PartialEq, Eq)]
@@ -87,4 +26,54 @@ pub enum StylingError {
     /// A numerical attribute was NaN or infinite.
     #[error("numerical attributes must be finite")]
     NonFiniteNumber,
+    /// A stable feature identity was empty.
+    #[error("feature identities must not be empty")]
+    EmptyFeatureId,
+    /// Two input features had the same stable identity.
+    #[error("duplicate feature identity: {0}")]
+    DuplicateFeatureId(String),
+    /// An attribute named by a specification was absent.
+    #[error("unknown attribute: {0}")]
+    UnknownAttribute(String),
+    /// Two attribute values cannot be compared under the requested operator.
+    #[error("attribute values have incompatible types")]
+    IncompatibleTypes,
+    /// A Boolean group contained no child expressions.
+    #[error("and/or filter expressions must contain at least one child")]
+    EmptyBooleanExpression,
+    /// A signed or unsigned integer could not be represented exactly as f64.
+    #[error("integer is outside the exact f64 range")]
+    NumberOutsideExactF64Range,
+    /// No feature records were supplied.
+    #[error("style resolution requires at least one input feature")]
+    EmptyInput,
+    /// A filter excluded every supplied feature.
+    #[error("style filter selected no features")]
+    EmptySelection,
+    /// A numerical classifier had no non-null values.
+    #[error("numerical classification requires at least one non-null value")]
+    EmptyNumericInput,
+    /// A classifier requested zero classes.
+    #[error("class count must be greater than zero")]
+    ZeroClasses,
+    /// A numerical classifier exceeded the bounded class-count contract.
+    #[error("requested {requested} classes, but the maximum is {maximum}")]
+    TooManyClasses {
+        /// Requested class count.
+        requested: usize,
+        /// Maximum supported class count.
+        maximum: usize,
+    },
+    /// Manual upper bounds were empty, non-finite, or not strictly increasing.
+    #[error("manual upper bounds must be finite and strictly increasing")]
+    UnorderedManualBreaks,
+    /// The last manual upper bound did not cover the selected maximum.
+    #[error("manual upper bounds do not cover every selected value")]
+    ManualBreaksDoNotCoverValues,
+    /// A ramp sample or custom stop position was not finite and in [0, 1].
+    #[error("color-ramp positions must be finite and in the closed interval [0, 1]")]
+    InvalidRampPosition,
+    /// A custom ramp had no stops or stops were not strictly increasing.
+    #[error("custom color-ramp stops must be non-empty and strictly increasing")]
+    UnorderedRampStops,
 }

@@ -46,10 +46,27 @@ their native public types or runtime dependencies.
 - Renderers do not silently reinterpret class boundaries.
 - Unsafe Rust is forbidden.
 
+## Current classification contract
+
+- Numerical intervals are lower-exclusive and upper-inclusive, except that the
+  first class includes its observed lower extent.
+- Quantile targets never split equal values. Ties may reduce the effective
+  class count.
+- Null classification values remain selected but receive no class or color.
+- Filters remove features before classification while retaining one outcome
+  per input identity.
+- Continuous classification records normalized ramp positions and no
+  artificial classes.
+- Class counts are bounded to prevent specifications from forcing unbounded
+  allocations.
+
 ## Delivery order
 
-1. Bootstrap the crate and dependency-neutral model.
+1. Bootstrap the crate and dependency-neutral model. Complete.
 2. Implement the first filter, classification, ramp, and plan contracts.
-3. Add an independent `vectorizer-rs render` adapter.
-4. Add Rerun integration against shared fixtures.
-5. Add skills only after an operational workflow stabilizes.
+   Complete.
+3. Add independently validated pretty-break, Jenks, and standard-deviation
+   slices.
+4. Add an independent `vectorizer-rs render` adapter.
+5. Add Rerun integration against shared fixtures.
+6. Add skills only after an operational workflow stabilizes.

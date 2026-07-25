@@ -11,6 +11,7 @@ keywords = ["gis", "classification", "styling", "color", "attributes"]
 categories = ["graphics", "science::geo"]
 
 [dependencies]
+colorous = "1.0.16"
 serde = { version = "1.0.228", features = ["derive"] }
 thiserror = "2.0.17"
 

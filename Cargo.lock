@@ -6,9 +6,16 @@ version = 4
 name = "attribute-styling"
 version = "0.1.0"
 dependencies = [
+ "colorous",
  "serde",
  "thiserror",
 ]
+
+[[package]]
+name = "colorous"
+version = "1.0.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e4e18bf7a165bf7028fde98609a0f1e8f7498d762a212598e6c891f6893556ec"
 
 [[package]]
 name = "proc-macro2"
