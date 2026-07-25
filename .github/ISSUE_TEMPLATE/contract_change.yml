@@ -1,0 +1,26 @@
+name: Contract change
+description: Propose a filter, classifier, ramp, channel, or plan change.
+title: "[Contract]: "
+labels: ["contract"]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: Consumer need
+      description: Name the concrete producers and consumers.
+    validations:
+      required: true
+  - type: textarea
+    id: contract
+    attributes:
+      label: Proposed contract
+      description: Define types, nulls, ties, boundaries, determinism, and errors.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Reference evidence
+      description: List independent fixtures and consumers that will validate it.
+    validations:
+      required: true
