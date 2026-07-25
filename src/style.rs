@@ -307,7 +307,7 @@ fn resolve_single(
     selected: &[&FeatureRecord],
     ramp: &ColorRamp,
 ) -> Result<PartialPlan, StylingError> {
-    let color = ramp.sample(0.5)?;
+    let color = ramp.sample_discrete(0, 1)?;
     let classes = vec![StyleClass {
         index: 0,
         label: "All features".to_owned(),
@@ -353,7 +353,7 @@ fn resolve_categorical(
     let mut class_by_key = BTreeMap::new();
     let mut classes = Vec::with_capacity(effective);
     for (index, (key, (_, label))) in categories.into_iter().enumerate() {
-        let color = ramp.sample(discrete_position(index, effective))?;
+        let color = ramp.sample_discrete(index, effective)?;
         class_by_key.insert(key, index);
         classes.push(StyleClass {
             index,
@@ -438,7 +438,7 @@ fn resolve_numeric(
                 label: format_numeric_label(lower, *upper, index == 0),
                 lower_bound: Some(lower),
                 upper_bound: Some(*upper),
-                color: ramp.sample(discrete_position(index, effective))?,
+                color: ramp.sample_discrete(index, effective)?,
             })
         })
         .collect::<Result<Vec<_>, StylingError>>()?;
@@ -626,15 +626,6 @@ fn validate_manual_breaks(upper_bounds: &[f64], maximum: f64) -> Result<(), Styl
         return Err(StylingError::ManualBreaksDoNotCoverValues);
     }
     Ok(())
-}
-
-#[allow(clippy::cast_precision_loss)]
-fn discrete_position(index: usize, count: usize) -> f64 {
-    if count <= 1 {
-        0.5
-    } else {
-        index as f64 / (count - 1) as f64
-    }
 }
 
 fn format_numeric_label(lower: f64, upper: f64, first: bool) -> String {

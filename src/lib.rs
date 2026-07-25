@@ -11,7 +11,10 @@ mod style;
 
 pub use filter::{Comparison, ComparisonOperator, FilterExpression, evaluate_filter};
 pub use model::{AttributeValue, FeatureRecord, FiniteF64};
-pub use ramp::{ColorRamp, ColorStop, Rgba};
+pub use ramp::{
+    BUILT_IN_RAMP_CATALOG_IDENTITY, BuiltInRamp, BuiltInRampKind,
+    CUSTOM_RAMP_INTERPOLATION_IDENTITY, ColorRamp, ColorStop, Rgba, built_in_ramps,
+};
 pub use style::{
     Classification, Classifier, FeatureStyleAssignment, FilterOutcome, ResolvedStylePlan,
     StyleClass, StyleSpec, resolve_style,
@@ -76,4 +79,25 @@ pub enum StylingError {
     /// A custom ramp had no stops or stops were not strictly increasing.
     #[error("custom color-ramp stops must be non-empty and strictly increasing")]
     UnorderedRampStops,
+    /// A categorical palette was used as a continuous gradient.
+    #[error("categorical palette requires discrete sampling: {0}")]
+    CategoricalPaletteRequiresDiscreteSampling(String),
+    /// A categorical palette was asked for more colors than it contains.
+    #[error("palette {palette} contains {maximum} colors but {requested} colors were requested")]
+    TooManyPaletteColors {
+        /// Stable built-in palette name.
+        palette: String,
+        /// Requested color count.
+        requested: usize,
+        /// Maximum fixed-color capacity.
+        maximum: usize,
+    },
+    /// A discrete color index was outside its requested color count.
+    #[error("palette index {index} is outside a color count of {count}")]
+    InvalidPaletteIndex {
+        /// Requested zero-based index.
+        index: usize,
+        /// Requested color count.
+        count: usize,
+    },
 }
