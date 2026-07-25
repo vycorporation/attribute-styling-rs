@@ -31,7 +31,7 @@ fn custom_ramp_interpolates_endpoints_and_reversal() {
     let reversed = ColorRamp::Custom {
         stops: match forward {
             ColorRamp::Custom { stops, .. } => stops,
-            ColorRamp::Viridis { .. } => unreachable!(),
+            ColorRamp::Viridis { .. } | ColorRamp::BuiltIn { .. } => unreachable!(),
         },
         reversed: true,
     };

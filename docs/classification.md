@@ -90,9 +90,40 @@ values use position `0.5`. It creates no artificial classes.
 Public plans contain only crate-owned eight-bit sRGB plus straight-alpha
 colors.
 
-The first built-in ramp is Viridis, privately sampled through `colorous`
-1.0.16. Custom ramps interpolate each sRGB/alpha channel linearly between
-strictly increasing stops. Reversal maps `t` to `1 - t`.
+The stable built-in catalog identity is `colorous_1_0_16_catalog_v1`. It
+exposes all 48 presets supported by `colorous` 1.0.16 through unique,
+case-sensitive, lowercase kebab-case names:
+
+- sequential: `blue-green`, `blue-purple`, `blues`, `cividis`, `cool`,
+  `cubehelix`, `green-blue`, `greens`, `greys`, `inferno`, `magma`,
+  `orange-red`, `oranges`, `plasma`, `purple-blue`, `purple-blue-green`,
+  `purple-red`, `purples`, `red-purple`, `reds`, `turbo`, `viridis`, `warm`,
+  `yellow-green`, `yellow-green-blue`, `yellow-orange-brown`, and
+  `yellow-orange-red`;
+- diverging: `brown-green`, `pink-green`, `purple-green`, `purple-orange`,
+  `red-blue`, `red-grey`, `red-yellow-blue`, `red-yellow-green`, and
+  `spectral`;
+- cyclical: `rainbow` and `sinebow`;
+- categorical: `accent` (8), `category10` (10), `dark2` (8), `paired` (12),
+  `pastel1` (9), `pastel2` (8), `set1` (9), `set2` (8), `set3` (12), and
+  `tableau10` (10).
+
+The number in parentheses is the categorical capacity and recommended
+category count. A categorical request returns the first requested fixed
+colors in source order and fails when the request exceeds capacity. Reversal
+reverses that selected fixed sequence. Categorical presets reject continuous
+sampling instead of being interpolated into gradients.
+
+Continuous named sampling delegates to the pinned preset at a normalized
+position. Discrete sampling delegates to the preset's rational sampling,
+which keeps cyclical endpoints from being duplicated; a one-color request
+uses the ramp midpoint. The existing
+`ColorRamp::Viridis` variant remains a source-compatible convenience, but
+catalog discovery and string lookup expose only the single name `viridis`.
+
+Custom ramps retain `srgb_linear_channel_round_v1`: each straight-alpha
+sRGB/alpha channel is interpolated linearly between strictly increasing stops
+and rounded to the nearest eight-bit value. Reversal maps `t` to `1 - t`.
 
 ## Reference evidence
 

@@ -26,7 +26,8 @@ The first functional release provides:
 - null, comparison, membership, and Boolean-composition filters;
 - single, categorical, equal-interval, quantile/equal-count, pretty,
   manual-break, and continuous classification;
-- a crate-owned RGBA contract, Viridis, custom stops, and reversal;
+- a crate-owned RGBA contract, all 48 supported named `colorous` presets,
+  custom stops, and reversal;
 - deterministic class boundaries, assignments, colors, filter outcomes, and
   legends; and
 - explicit null, tie, boundary, degenerate-input, and requested/effective class
@@ -81,7 +82,7 @@ assert_eq!(plan.effective_class_count(), 3);
 ```
 
 See [`docs/classification.md`](docs/classification.md) for exact boundaries,
-ties, nulls, and determinism.
+ties, nulls, ramp catalog semantics, and determinism.
 The first independent real-artifact check is recorded in
 [`docs/validation/2026-07-25-vectorizer-qgis.md`](docs/validation/2026-07-25-vectorizer-qgis.md).
 
