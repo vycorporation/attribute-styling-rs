@@ -18,11 +18,22 @@ making any renderer, storage engine, or GUI authoritative.
 The public interface contains crate-owned types. It does not expose Arrow,
 Parquet, DataFusion, Rerun, image, wgpu, or vectorizer-specific types.
 
-## Status
+## Current capabilities
 
-The bootstrap establishes the crate boundary and dependency-neutral scalar
-model. Classification, filters, ramps, and resolved style plans will land in
-independently reviewed slices.
+The first functional release provides:
+
+- dependency-neutral feature records and typed scalar attributes;
+- null, comparison, membership, and Boolean-composition filters;
+- single, categorical, equal-interval, quantile/equal-count, manual-break, and
+  continuous classification;
+- a crate-owned RGBA contract, Viridis, custom stops, and reversal;
+- deterministic class boundaries, assignments, colors, filter outcomes, and
+  legends; and
+- explicit null, tie, boundary, degenerate-input, and requested/effective class
+  semantics.
+
+Natural breaks (Jenks), pretty breaks, and standard-deviation classification
+remain separate follow-up slices requiring reference fixtures.
 
 `vectorizer-rs` keeps its canonical `preview.png` and artifact-v5 bundle
 unchanged. Its planned `render` subcommand will style existing output and write
@@ -31,13 +42,48 @@ separate caller-selected artifacts.
 ## Example
 
 ```rust
-use attribute_styling::AttributeValue;
+use std::collections::BTreeMap;
 
-let score = AttributeValue::try_f64(0.75)?;
-let label = AttributeValue::Text("component-12".to_owned());
+use attribute_styling::{
+    AttributeValue, Classification, Classifier, ColorRamp, FeatureRecord,
+    StyleSpec, resolve_style,
+};
+
+let features = [1.0, 4.0, 9.0]
+    .into_iter()
+    .enumerate()
+    .map(|(index, length)| {
+        FeatureRecord::new(
+            format!("curve-{index}"),
+            BTreeMap::from([(
+                "length".to_owned(),
+                AttributeValue::try_f64(length)?,
+            )]),
+        )
+    })
+    .collect::<Result<Vec<_>, _>>()?;
+
+let plan = resolve_style(
+    &features,
+    &StyleSpec {
+        filter: None,
+        classification: Classification::Numeric {
+            attribute: "length".to_owned(),
+            classifier: Classifier::Quantile { classes: 3 },
+        },
+        ramp: ColorRamp::Viridis { reversed: false },
+    },
+)?;
+
+assert_eq!(plan.effective_class_count(), 3);
 
 # Ok::<(), attribute_styling::StylingError>(())
 ```
+
+See [`docs/classification.md`](docs/classification.md) for exact boundaries,
+ties, nulls, and determinism.
+The first independent real-artifact check is recorded in
+[`docs/validation/2026-07-25-vectorizer-qgis.md`](docs/validation/2026-07-25-vectorizer-qgis.md).
 
 ## Validation
 

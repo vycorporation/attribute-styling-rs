@@ -22,6 +22,8 @@ I/O, table engines, GUI runtimes, and renderers.
   separately approved.
 - Keep ramp kind and visual-channel meaning explicit.
 - Return immutable plans; never render inside the core crate.
+- Keep resolved-plan fields private and expose read-only accessors.
+- Bound class counts before allocating class or legend collections.
 - Do not use unsafe Rust.
 
 ## Dependency policy
@@ -32,6 +34,9 @@ Third-party palette types must remain private.
 
 Prefer small, maintained Rust dependencies. Review license and maintenance
 evidence before adding one.
+
+`colorous` 1.0.16 is the private Apache-2.0 implementation behind the initial
+Viridis ramp. Do not expose its types.
 
 ## Consumer boundaries
 
