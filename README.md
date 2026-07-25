@@ -35,6 +35,12 @@ The first functional release provides:
 Natural breaks (Jenks), pretty breaks, and standard-deviation classification
 remain separate follow-up slices requiring reference fixtures.
 
+The optional `stylx` feature adds a narrow read-only adapter for
+caller-provided ArcGIS Pro style databases. It imports only fixed ramps made
+from losslessly representable RGB colors; see
+[`docs/stylx.md`](docs/stylx.md) for the exact compatibility and security
+contract.
+
 `vectorizer-rs` keeps its canonical `preview.png` and artifact-v5 bundle
 unchanged. Its planned `render` subcommand will style existing output and write
 separate caller-selected artifacts.
@@ -94,6 +100,9 @@ cargo test --all-features
 RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features
 git diff --check
 ```
+
+Run `cargo test --no-default-features` to prove the SQLite adapter remains
+absent from the dependency-neutral default build.
 
 The crate uses Rust 2024, has MSRV 1.89, forbids unsafe Rust, and is licensed
 under either Apache-2.0 or MIT.

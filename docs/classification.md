@@ -70,6 +70,12 @@ The first built-in ramp is Viridis, privately sampled through `colorous`
 1.0.16. Custom ramps interpolate each sRGB/alpha channel linearly between
 strictly increasing stops. Reversal maps `t` to `1 - t`.
 
+Fixed ramps contain an ordered, bounded set of exact RGBA colors. They support
+only discrete sampling, return the first requested colors in source order,
+and reject requests above their capacity. Reversal reverses the selected
+fixed sequence. The optional `.stylx` adapter returns this ordinary crate-owned
+variant without exposing SQLite or CIM types.
+
 ## Deferred reference classifiers
 
 Pretty breaks, Jenks natural breaks, and standard-deviation classification are

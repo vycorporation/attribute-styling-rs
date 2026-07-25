@@ -8,6 +8,8 @@ mod filter;
 mod model;
 mod ramp;
 mod style;
+#[cfg(feature = "stylx")]
+mod stylx;
 
 pub use filter::{Comparison, ComparisonOperator, FilterExpression, evaluate_filter};
 pub use model::{AttributeValue, FeatureRecord, FiniteF64};
@@ -15,6 +17,11 @@ pub use ramp::{ColorRamp, ColorStop, Rgba};
 pub use style::{
     Classification, Classifier, FeatureStyleAssignment, FilterOutcome, ResolvedStylePlan,
     StyleClass, StyleSpec, resolve_style,
+};
+#[cfg(feature = "stylx")]
+pub use stylx::{
+    STYLX_READER_IDENTITY, StylxCatalog, StylxError, StylxRamp, StylxUnsupportedEntry,
+    StylxUnsupportedReason, read_stylx,
 };
 
 use thiserror::Error;
@@ -76,4 +83,23 @@ pub enum StylingError {
     /// A custom ramp had no stops or stops were not strictly increasing.
     #[error("custom color-ramp stops must be non-empty and strictly increasing")]
     UnorderedRampStops,
+    /// A fixed ramp was used as a continuous gradient.
+    #[error("fixed color ramps require discrete sampling")]
+    FixedRampRequiresDiscreteSampling,
+    /// A fixed ramp was asked for more colors than it contains.
+    #[error("fixed ramp contains {maximum} colors but {requested} colors were requested")]
+    TooManyFixedRampColors {
+        /// Requested color count.
+        requested: usize,
+        /// Maximum fixed-color capacity.
+        maximum: usize,
+    },
+    /// A discrete color index was outside its requested color count.
+    #[error("palette index {index} is outside a color count of {count}")]
+    InvalidPaletteIndex {
+        /// Requested zero-based index.
+        index: usize,
+        /// Requested color count.
+        count: usize,
+    },
 }

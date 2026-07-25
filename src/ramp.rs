@@ -71,6 +71,13 @@ pub enum ColorRamp {
         /// Sample the ramp from high to low.
         reversed: bool,
     },
+    /// Caller-provided fixed colors for discrete classification.
+    Fixed {
+        /// Ordered fixed colors.
+        colors: Vec<Rgba>,
+        /// Sample the fixed sequence from high to low.
+        reversed: bool,
+    },
     /// Piecewise-linear interpolation between caller-provided sRGB stops.
     Custom {
         /// Strictly increasing stops.
@@ -95,12 +102,54 @@ impl ColorRamp {
                 let color = colorous::VIRIDIS.eval_continuous(position);
                 Ok(Rgba::new(color.r, color.g, color.b, 255))
             }
+            Self::Fixed { .. } => Err(StylingError::FixedRampRequiresDiscreteSampling),
             Self::Custom { stops, reversed } => {
                 validate_stops(stops)?;
                 let position = if *reversed { 1.0 - position } else { position };
                 sample_custom(stops, position)
             }
         }
+    }
+
+    /// Samples one color from an ordered set of `count` discrete colors.
+    ///
+    /// Fixed ramps return their first `count` colors exactly and reject
+    /// requests above their capacity. Other ramps are sampled at evenly spaced
+    /// positions including both endpoints.
+    ///
+    /// # Errors
+    ///
+    /// Returns a typed error for zero colors, an out-of-range index, a fixed
+    /// ramp capacity violation, or an invalid custom ramp.
+    pub fn sample_discrete(&self, index: usize, count: usize) -> Result<Rgba, StylingError> {
+        if count == 0 {
+            return Err(StylingError::ZeroClasses);
+        }
+        if index >= count {
+            return Err(StylingError::InvalidPaletteIndex { index, count });
+        }
+        match self {
+            Self::Fixed { colors, reversed } => {
+                if count > colors.len() {
+                    return Err(StylingError::TooManyFixedRampColors {
+                        requested: count,
+                        maximum: colors.len(),
+                    });
+                }
+                let index = if *reversed { count - 1 - index } else { index };
+                Ok(colors[index])
+            }
+            _ => self.sample(discrete_position(index, count)),
+        }
+    }
+}
+
+#[allow(clippy::cast_precision_loss)]
+fn discrete_position(index: usize, count: usize) -> f64 {
+    if count <= 1 {
+        0.5
+    } else {
+        index as f64 / (count - 1) as f64
     }
 }
 
