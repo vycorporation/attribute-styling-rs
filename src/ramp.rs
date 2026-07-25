@@ -373,6 +373,13 @@ pub enum ColorRamp {
         /// Sample the ramp from high to low.
         reversed: bool,
     },
+    /// Caller-provided fixed colors for discrete classification.
+    Fixed {
+        /// Ordered fixed colors.
+        colors: Vec<Rgba>,
+        /// Sample the fixed sequence from high to low.
+        reversed: bool,
+    },
     /// Piecewise-linear interpolation between caller-provided sRGB stops.
     Custom {
         /// Strictly increasing stops.
@@ -406,6 +413,7 @@ impl ColorRamp {
                 let position = if *reversed { 1.0 - position } else { position };
                 Ok(to_rgba(gradient.eval_continuous(position)))
             }
+            Self::Fixed { .. } => Err(StylingError::FixedRampRequiresDiscreteSampling),
             Self::Custom { stops, reversed } => {
                 validate_stops(stops)?;
                 let position = if *reversed { 1.0 - position } else { position };
@@ -419,13 +427,15 @@ impl ColorRamp {
     /// Categorical presets return their exact fixed colors and reject requests
     /// above their documented capacity. Continuous presets use their pinned
     /// rational sampling rule, except that a one-color request samples the
-    /// midpoint. Custom ramps and the legacy Viridis variant use evenly spaced
+    /// midpoint. Fixed ramps return their first `count` colors exactly and
+    /// reject requests above their capacity. Custom ramps and the legacy
+    /// Viridis variant use evenly spaced
     /// positions including both endpoints.
     ///
     /// # Errors
     ///
     /// Returns a typed error for zero colors, an out-of-range index, a
-    /// categorical capacity violation, or an invalid custom ramp.
+    /// categorical or fixed capacity violation, or an invalid custom ramp.
     pub fn sample_discrete(&self, index: usize, count: usize) -> Result<Rgba, StylingError> {
         if count == 0 {
             return Err(StylingError::ZeroClasses);
@@ -456,6 +466,16 @@ impl ColorRamp {
                         Ok(to_rgba(color))
                     }
                 }
+            }
+            Self::Fixed { colors, reversed } => {
+                if count > colors.len() {
+                    return Err(StylingError::TooManyFixedRampColors {
+                        requested: count,
+                        maximum: colors.len(),
+                    });
+                }
+                let index = if *reversed { count - 1 - index } else { index };
+                Ok(colors[index])
             }
             _ => self.sample(discrete_position(index, count)),
         }

@@ -9,6 +9,8 @@ mod model;
 mod pretty;
 mod ramp;
 mod style;
+#[cfg(feature = "stylx")]
+mod stylx;
 
 pub(crate) const MAXIMUM_CLASSES: usize = 4096;
 
@@ -22,6 +24,11 @@ pub use ramp::{
 pub use style::{
     Classification, Classifier, FeatureStyleAssignment, FilterOutcome, ResolvedStylePlan,
     StyleClass, StyleSpec, resolve_style,
+};
+#[cfg(feature = "stylx")]
+pub use stylx::{
+    STYLX_READER_IDENTITY, StylxCatalog, StylxError, StylxRamp, StylxUnsupportedEntry,
+    StylxUnsupportedReason, read_stylx,
 };
 
 use thiserror::Error;
@@ -97,6 +104,17 @@ pub enum StylingError {
     TooManyPaletteColors {
         /// Stable built-in palette name.
         palette: String,
+        /// Requested color count.
+        requested: usize,
+        /// Maximum fixed-color capacity.
+        maximum: usize,
+    },
+    /// A fixed ramp was used as a continuous gradient.
+    #[error("fixed color ramps require discrete sampling")]
+    FixedRampRequiresDiscreteSampling,
+    /// A fixed ramp was asked for more colors than it contains.
+    #[error("fixed ramp contains {maximum} colors but {requested} colors were requested")]
+    TooManyFixedRampColors {
         /// Requested color count.
         requested: usize,
         /// Maximum fixed-color capacity.
