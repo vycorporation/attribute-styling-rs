@@ -24,16 +24,16 @@ The first functional release provides:
 
 - dependency-neutral feature records and typed scalar attributes;
 - null, comparison, membership, and Boolean-composition filters;
-- single, categorical, equal-interval, quantile/equal-count, manual-break, and
-  continuous classification;
+- single, categorical, equal-interval, quantile/equal-count, pretty,
+  manual-break, and continuous classification;
 - a crate-owned RGBA contract, Viridis, custom stops, and reversal;
 - deterministic class boundaries, assignments, colors, filter outcomes, and
   legends; and
 - explicit null, tie, boundary, degenerate-input, and requested/effective class
   semantics.
 
-Natural breaks (Jenks), pretty breaks, and standard-deviation classification
-remain separate follow-up slices requiring reference fixtures.
+Natural breaks (Jenks) and standard-deviation classification remain separate
+follow-up slices requiring reference fixtures.
 
 `vectorizer-rs` keeps its canonical `preview.png` and artifact-v5 bundle
 unchanged. Its planned `render` subcommand will style existing output and write
