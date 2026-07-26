@@ -2,7 +2,7 @@
 name = "attribute-styling"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.89"
+rust-version = "1.92"
 license = "MIT OR Apache-2.0"
 description = "Renderer-neutral attribute filtering, classification, and style resolution"
 repository = "https://github.com/vycorporation/attribute-styling-rs"

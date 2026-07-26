@@ -105,5 +105,9 @@ git diff --check
 Run `cargo test --no-default-features` to prove the SQLite adapter remains
 absent from the dependency-neutral default build.
 
-The crate uses Rust 2024, has MSRV 1.89, forbids unsafe Rust, and is licensed
-under either Apache-2.0 or MIT.
+Ordinary development and release validation use the exact Rust 1.97.1
+toolchain declared in `rust-toolchain.toml`.
+The crate's MSRV is Rust 1.92 so it remains consumable by the current
+`vycorporation/rerun` 0.34 workspace.
+The crate uses Rust 2024, forbids unsafe Rust, and is licensed under either
+Apache-2.0 or MIT.
