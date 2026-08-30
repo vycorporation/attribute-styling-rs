@@ -66,7 +66,7 @@ A saved QGIS project contains a categorized renderer over `class_index` using
 the exact five resolved Viridis colors. A second QGIS render used one-pixel
 black lines for geometry-only comparison with canonical `preview.png`.
 
-QGIS renders Cartesian y-up while the vectorizer contract is top-left/y-down.
+QGIS renders Cartesian y-up while vectorizer-rs contract is top-left/y-down.
 The QGIS images were therefore vertically flipped before image-space
 comparison; no stored geometry was changed.
 
