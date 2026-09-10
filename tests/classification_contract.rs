@@ -461,3 +461,41 @@ fn large_integer_categories_remain_exact_while_numeric_projection_is_rejected() 
         Err(StylingError::NumberOutsideExactF64Range)
     );
 }
+
+#[test]
+fn nonzero_subnormal_interval_width_keeps_interior_bounds_inside_range() {
+    let tiny = f64::from_bits;
+    for values in [
+        [0.0, tiny(9)],
+        [-tiny(9), 0.0],
+        [tiny(5), tiny(14)],
+        [-tiny(14), -tiny(5)],
+    ] {
+        let plan = resolve_style(
+            &records(&values),
+            &viridis(Classification::Numeric {
+                attribute: "length".to_owned(),
+                classifier: Classifier::EqualInterval { classes: 6 },
+            }),
+        )
+        .expect("six representable intervals within nine subnormal units");
+        let bounds = plan
+            .classes()
+            .iter()
+            .map(|class| class.upper_bound().expect("numeric class"))
+            .collect::<Vec<_>>();
+        assert_eq!(bounds.len(), 6);
+        assert!(
+            bounds
+                .iter()
+                .all(|bound| bound.is_finite() && *bound >= values[0] && *bound <= values[1])
+        );
+        assert!(bounds.windows(2).all(|pair| pair[0] < pair[1]));
+        assert_eq!(bounds.last(), Some(&values[1]));
+        assert!(
+            plan.assignments()
+                .iter()
+                .all(|assignment| assignment.class_index().is_some())
+        );
+    }
+}

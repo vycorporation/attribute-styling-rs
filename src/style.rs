@@ -599,7 +599,7 @@ fn equal_interval_breaks(sorted: &[f64], classes: usize) -> Vec<f64> {
                 let position = index as f64 / classes as f64;
                 // Weighted opposite-sign endpoints do not overflow, unlike span.
                 minimum * (1.0 - position) + maximum * position
-            } else if width == 0.0 {
+            } else if width == 0.0 || width.is_subnormal() {
                 minimum + span * (index as f64 / classes as f64)
             } else {
                 minimum + width * index as f64
