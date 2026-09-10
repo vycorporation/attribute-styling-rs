@@ -261,3 +261,203 @@ fn categorical_and_single_classification_are_deterministic() {
         Some(Rgba::new(12, 34, 56, 255))
     );
 }
+
+#[test]
+fn categorical_float_identity_is_lossless_and_independent_of_input_order() {
+    let values = [
+        1.0,
+        1.0 + f64::EPSILON,
+        -1.0,
+        -1.0 - f64::EPSILON,
+        f64::from_bits(1),
+        f64::from_bits(2),
+        f64::MAX.next_down(),
+        f64::MAX,
+    ];
+    let mut input = records(&values);
+    let style = viridis(Classification::Categorical {
+        attribute: "length".to_owned(),
+    });
+    let first = resolve_style(&input, &style).expect("distinct float categories");
+    assert_eq!(first.effective_class_count(), 8);
+    let indices = first
+        .assignments()
+        .iter()
+        .map(|a| a.class_index().unwrap())
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(indices.len(), 8);
+    input.reverse();
+    let reversed = resolve_style(&input, &style).expect("permuted float categories");
+    assert_eq!(first.classes(), reversed.classes());
+    for assignment in first.assignments() {
+        assert_eq!(
+            Some(assignment),
+            reversed
+                .assignments()
+                .iter()
+                .find(|a| a.feature_id() == assignment.feature_id())
+        );
+    }
+}
+
+#[test]
+fn categorical_and_numeric_classifiers_share_numerical_signed_zero_equality() {
+    for classification in [
+        Classification::Categorical {
+            attribute: "length".to_owned(),
+        },
+        Classification::Numeric {
+            attribute: "length".to_owned(),
+            classifier: Classifier::EqualInterval { classes: 3 },
+        },
+        Classification::Numeric {
+            attribute: "length".to_owned(),
+            classifier: Classifier::Quantile { classes: 3 },
+        },
+    ] {
+        let style = viridis(classification);
+        let input = records(&[-0.0, 0.0]);
+        let first = resolve_style(&input, &style).expect("one zero value");
+        assert_eq!(first.effective_class_count(), 1);
+        assert!(
+            first
+                .assignments()
+                .iter()
+                .all(|a| a.class_index() == Some(0))
+        );
+        let reverse =
+            resolve_style(&[input[1].clone(), input[0].clone()], &style).expect("same zero value");
+        assert_eq!(first.classes(), reverse.classes());
+    }
+}
+
+#[test]
+fn manual_signed_zeros_are_duplicate_bounds() {
+    for upper_bounds in [vec![-0.0, 0.0], vec![0.0, -0.0]] {
+        assert_eq!(
+            resolve_style(
+                &records(&[0.0]),
+                &viridis(Classification::Numeric {
+                    attribute: "length".to_owned(),
+                    classifier: Classifier::Manual { upper_bounds },
+                })
+            ),
+            Err(StylingError::UnorderedManualBreaks)
+        );
+    }
+}
+
+#[test]
+fn manual_and_categorical_class_counts_are_bounded() {
+    for count in [4096, 4097] {
+        let values = (0..count).map(f64::from).collect::<Vec<_>>();
+        let manual = resolve_style(
+            &records(&[0.0, 1.0]),
+            &viridis(Classification::Numeric {
+                attribute: "length".to_owned(),
+                classifier: Classifier::Manual {
+                    upper_bounds: values.clone(),
+                },
+            }),
+        );
+        let categorical = resolve_style(
+            &records(&values),
+            &viridis(Classification::Categorical {
+                attribute: "length".to_owned(),
+            }),
+        );
+        for result in [manual, categorical] {
+            if count == 4096 {
+                assert_eq!(
+                    result
+                        .expect("maximum accepted count")
+                        .effective_class_count(),
+                    4096
+                );
+            } else {
+                assert_eq!(
+                    result.err(),
+                    Some(StylingError::TooManyClasses {
+                        requested: 4097,
+                        maximum: 4096
+                    })
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn equal_interval_extreme_finite_values_have_finite_ordered_bounds_and_assignments() {
+    for values in [
+        vec![-f64::MAX, 0.0, f64::MAX],
+        vec![0.0, f64::from_bits(1)],
+        vec![1.0, 1.0 + f64::EPSILON],
+        vec![f64::MAX.next_down(), f64::MAX],
+    ] {
+        let plan = resolve_style(
+            &records(&values),
+            &viridis(Classification::Numeric {
+                attribute: "length".to_owned(),
+                classifier: Classifier::EqualInterval { classes: 4 },
+            }),
+        )
+        .expect("finite equal-interval plan");
+        assert_eq!(plan.requested_class_count(), Some(4));
+        assert!(plan.effective_class_count() <= 4);
+        assert_eq!(plan.legend(), plan.classes());
+        let bounds = plan
+            .classes()
+            .iter()
+            .map(|c| c.upper_bound().unwrap())
+            .collect::<Vec<_>>();
+        assert!(bounds.iter().all(|bound| bound.is_finite()));
+        assert!(bounds.windows(2).all(|pair| pair[0] < pair[1]));
+        assert_eq!(bounds.last(), values.last());
+        for (value, assignment) in values.iter().zip(plan.assignments()) {
+            let index = assignment.class_index().expect("class for each value");
+            assert!(*value <= bounds[index]);
+            if index > 0 {
+                assert!(*value > bounds[index - 1]);
+            }
+            assert_eq!(assignment.color(), Some(plan.classes()[index].color()));
+        }
+    }
+}
+
+#[test]
+fn large_integer_categories_remain_exact_while_numeric_projection_is_rejected() {
+    let input = [
+        AttributeValue::Unsigned(u64::MAX),
+        AttributeValue::Unsigned(u64::MAX - 1),
+        AttributeValue::Signed(i64::MIN),
+    ]
+    .into_iter()
+    .enumerate()
+    .map(|(index, value)| {
+        FeatureRecord::new(
+            index.to_string(),
+            BTreeMap::from([("length".to_owned(), value)]),
+        )
+        .expect("feature")
+    })
+    .collect::<Vec<_>>();
+    let categorical = resolve_style(
+        &input,
+        &viridis(Classification::Categorical {
+            attribute: "length".to_owned(),
+        }),
+    )
+    .expect("exact integer categories");
+    assert_eq!(categorical.effective_class_count(), 3);
+    assert_eq!(
+        resolve_style(
+            &input,
+            &viridis(Classification::Numeric {
+                attribute: "length".to_owned(),
+                classifier: Classifier::Quantile { classes: 2 }
+            })
+        ),
+        Err(StylingError::NumberOutsideExactF64Range)
+    );
+}

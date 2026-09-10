@@ -19,6 +19,8 @@ Filters support:
 - `not`.
 
 An unknown attribute or incompatible comparison fails the complete resolution.
+Every child or membership literal is evaluated for validity even after the
+Boolean result is determined; short circuit does not hide invalid operands.
 Filter outcomes remain in input order. Excluded features do not participate in
 classification or assignments.
 
@@ -37,7 +39,11 @@ Every non-null selected value has exactly one class.
 
 Equal interval divides the observed minimum-to-maximum extent into the
 requested number of equal-width ranges. Degenerate input resolves to one
-effective class.
+effective class. Finite endpoints produce finite bounds even when subtracting
+them would overflow. Boundaries that coincide at local `f64` precision are merged,
+so effective count can be smaller than requested. Generated bounds must remain
+finite, strictly increasing, and covering; impossible bounds fail with a typed
+error before any plan is returned.
 
 Quantile targets equal population counts but never splits equal values. It
 selects the cumulative tied-value boundary nearest each population target,
@@ -49,14 +55,14 @@ Manual classification accepts strictly increasing, finite inclusive upper
 bounds. The final bound must cover the observed maximum.
 
 Pretty classification uses the crate-owned
-`pretty_125_covering_v1` contract. Given a non-degenerate finite observed
+`pretty_125_covering_v2` contract. Given a non-degenerate finite observed
 range and an approximate requested interval count, it:
 
 1. computes a target cell width from the observed span;
 2. selects a step from `1`, `2`, or `5` times an integral power of ten using
    the R/QGIS high-unit bias `1.5` and five-unit bias `2.75`;
 3. expands the implicit lower bound and returned upper bounds outward so they
-   cover the complete observed range; and
+   cover the complete observed range with exact numerical comparisons; and
 4. reports the requested count separately from the number of effective
    intervals.
 
@@ -72,18 +78,35 @@ the local `f64` precision also collapses to one class at the observed maximum.
 Decreasing bounds are invalid. Finite endpoints whose subtraction overflows
 fail as an unrepresentable pretty range.
 
-The numerical class count is limited to 4,096 before class allocation.
+The numerical and categorical class counts are limited to 4,096 before class
+or legend allocation, including caller-supplied manual bounds and distinct
+categorical values. Repeated categories do not consume additional capacity.
+
+Numerical equality treats `-0.0` and `+0.0` as the same value. Classification
+normalizes their bounds and labels to positive zero; quantile ties cannot split
+them, and a manual boundary list containing both is not strictly increasing.
+
+Version 2 corrects version 1's epsilon-based endpoint acceptance, which could
+leave an observed maximum uncovered and panic during assignment. The original
+July reference record remains version 1 evidence; its checked-in reference
+matrix also passes the version 2 implementation.
 
 ## Other classifiers
 
 Single classification assigns every selected feature to one class.
 
 Categorical classification sorts distinct typed values deterministically.
+Its keys retain exact integer and finite-float identities; adjacent distinct
+binary64 values cannot merge through display rounding. Float signed zeros
+share one category, consistent with numerical equality. Type distinctions
+(signed, unsigned, float, Boolean, and text) remain part of category identity.
 Nulls receive no class or color.
 
 Continuous classification maps the observed minimum to ramp position `0`, the
 maximum to `1`, and intermediate values linearly between them. Degenerate
-values use position `0.5`. It creates no artificial classes.
+values use position `0.5`. Opposite-sign extreme finite endpoints use scaled
+normalization to avoid overflowing intermediate differences. It creates no
+artificial classes.
 
 ## Color ramps
 

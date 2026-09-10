@@ -104,30 +104,27 @@ pub fn evaluate_filter(
         }
         FilterExpression::In { attribute, values } => {
             let observed = feature.attribute(attribute)?;
+            let mut matched = false;
             for value in values {
-                if observed.compare(value)? == Ordering::Equal {
-                    return Ok(true);
-                }
+                matched |= observed.compare(value)? == Ordering::Equal;
             }
-            Ok(false)
+            Ok(matched)
         }
         FilterExpression::And(children) => {
             require_children(children)?;
+            let mut included = true;
             for child in children {
-                if !evaluate_filter(feature, child)? {
-                    return Ok(false);
-                }
+                included &= evaluate_filter(feature, child)?;
             }
-            Ok(true)
+            Ok(included)
         }
         FilterExpression::Or(children) => {
             require_children(children)?;
+            let mut included = false;
             for child in children {
-                if evaluate_filter(feature, child)? {
-                    return Ok(true);
-                }
+                included |= evaluate_filter(feature, child)?;
             }
-            Ok(false)
+            Ok(included)
         }
         FilterExpression::Not(child) => Ok(!evaluate_filter(feature, child)?),
     }

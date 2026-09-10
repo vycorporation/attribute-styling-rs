@@ -70,7 +70,7 @@ pub enum StylingError {
     /// A classifier requested zero classes.
     #[error("class count must be greater than zero")]
     ZeroClasses,
-    /// A numerical classifier exceeded the bounded class-count contract.
+    /// A numerical or categorical classifier exceeded the class-count bound.
     #[error("requested {requested} classes, but the maximum is {maximum}")]
     TooManyClasses {
         /// Requested class count.
@@ -84,6 +84,9 @@ pub enum StylingError {
     /// Finite pretty-break inputs could not produce finite covering bounds.
     #[error("pretty-break range cannot be represented with finite covering bounds")]
     UnrepresentablePrettyRange,
+    /// Generated numerical bounds are not finite, ordered, or covering.
+    #[error("numerical class bounds must be finite, strictly increasing, and cover the values")]
+    UnrepresentableNumericRange,
     /// Manual upper bounds were empty, non-finite, or not strictly increasing.
     #[error("manual upper bounds must be finite and strictly increasing")]
     UnorderedManualBreaks,

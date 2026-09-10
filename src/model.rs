@@ -48,7 +48,7 @@ impl AttributeValue {
             }
             Self::Unsigned(value) if *value <= MAX_EXACT_INTEGER => Ok(Some(*value as f64)),
             Self::Unsigned(_) => Err(StylingError::NumberOutsideExactF64Range),
-            Self::Float(value) => Ok(Some(value.get())),
+            Self::Float(value) => Ok(Some(canonicalize_zero(value.get()))),
             Self::Boolean(_) | Self::Text(_) => Err(StylingError::IncompatibleTypes),
         }
     }
@@ -97,7 +97,9 @@ impl AttributeValue {
             Self::Boolean(value) => Ok((0, value.to_string())),
             Self::Signed(value) => Ok((1, format!("{value:+020}"))),
             Self::Unsigned(value) => Ok((2, format!("{value:020}"))),
-            Self::Float(value) => Ok((3, format!("{:024.12e}", value.get()))),
+            // Seventeen fractional scientific digits retain every binary64 value;
+            // category identity must not round distinct finite attributes together.
+            Self::Float(value) => Ok((3, format!("{:024.17e}", canonicalize_zero(value.get())))),
             Self::Text(value) => Ok((4, value.clone())),
         }
     }
@@ -108,7 +110,7 @@ impl AttributeValue {
             Self::Boolean(value) => Ok(value.to_string()),
             Self::Signed(value) => Ok(format!("signed:{value}")),
             Self::Unsigned(value) => Ok(format!("unsigned:{value}")),
-            Self::Float(value) => Ok(format!("float:{}", value.get())),
+            Self::Float(value) => Ok(format!("float:{}", canonicalize_zero(value.get()))),
             Self::Text(value) => Ok(value.clone()),
         }
     }
@@ -203,4 +205,9 @@ impl FeatureRecord {
             .get(name)
             .ok_or_else(|| StylingError::UnknownAttribute(name.to_owned()))
     }
+}
+
+/// Classification uses numerical equality, including a single identity for zero.
+pub(crate) fn canonicalize_zero(value: f64) -> f64 {
+    if value == 0.0 { 0.0 } else { value }
 }

@@ -153,3 +153,59 @@ fn continuous_classification_samples_numeric_extent_without_classes() {
     assert_eq!(plan.assignments()[1].ramp_position(), Some(0.5));
     assert_eq!(plan.assignments()[2].ramp_position(), Some(1.0));
 }
+
+#[test]
+fn continuous_normalization_handles_finite_extremes_and_signed_zero() {
+    for (values, expected) in [
+        (vec![-f64::MAX, 0.0, f64::MAX], vec![0.0, 0.5, 1.0]),
+        (vec![-0.0, 0.0], vec![0.5, 0.5]),
+        (vec![0.0, f64::from_bits(1)], vec![0.0, 1.0]),
+        (vec![f64::MAX.next_down(), f64::MAX], vec![0.0, 1.0]),
+    ] {
+        let input = values
+            .into_iter()
+            .enumerate()
+            .map(|(index, value)| {
+                FeatureRecord::new(
+                    index.to_string(),
+                    BTreeMap::from([(
+                        "value".to_owned(),
+                        AttributeValue::try_f64(value).expect("finite"),
+                    )]),
+                )
+                .expect("feature")
+            })
+            .collect::<Vec<_>>();
+        let ramp = ColorRamp::Custom {
+            stops: vec![
+                ColorStop::new(0.0, Rgba::new(0, 0, 0, 255)).expect("stop"),
+                ColorStop::new(1.0, Rgba::new(200, 200, 200, 255)).expect("stop"),
+            ],
+            reversed: false,
+        };
+        let plan = resolve_style(
+            &input,
+            &StyleSpec {
+                filter: None,
+                classification: Classification::Continuous {
+                    attribute: "value".to_owned(),
+                },
+                ramp,
+            },
+        )
+        .expect("representable normalized extent");
+        for (assignment, position) in plan.assignments().iter().zip(expected) {
+            assert_eq!(assignment.ramp_position(), Some(position));
+            let channel = match position {
+                0.0 => 0,
+                0.5 => 100,
+                1.0 => 200,
+                _ => unreachable!(),
+            };
+            assert_eq!(
+                assignment.color(),
+                Some(Rgba::new(channel, channel, channel, 255))
+            );
+        }
+    }
+}

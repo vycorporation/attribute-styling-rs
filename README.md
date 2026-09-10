@@ -42,9 +42,10 @@ from losslessly representable RGB colors; see
 [`docs/stylx.md`](docs/stylx.md) for the exact compatibility and security
 contract.
 
-`vectorizer-rs` keeps its canonical `preview.png` and artifact-v5 bundle
-unchanged. Its planned `render` subcommand will style existing output and write
-separate caller-selected artifacts.
+`vectorizer-rs` uses this crate in its `render` subcommand to style existing
+curve output and write separate caller-selected artifacts. It retains ownership
+of canonical `preview.png`, cubic outputs, and their artifact contracts; see its
+[current rendering contract](https://github.com/vycorporation/vectorizer-rs/blob/main/docs/attribute-rendering.md).
 
 ## Example
 

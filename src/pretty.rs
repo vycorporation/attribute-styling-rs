@@ -1,3 +1,4 @@
+use crate::model::canonicalize_zero;
 use crate::{FiniteF64, MAXIMUM_CLASSES, StylingError};
 
 const ROUNDING_EPSILON: f64 = 1e-10;
@@ -6,7 +7,7 @@ const FIVE_UNIT_BIAS: f64 = 0.5 + 1.5 * HIGH_UNIT_BIAS;
 const MAXIMUM_CLASSES_F64: f64 = 4096.0;
 
 /// Stable identity for the crate-owned pretty-break implementation.
-pub const PRETTY_BREAKS_IDENTITY: &str = "pretty_125_covering_v1";
+pub const PRETTY_BREAKS_IDENTITY: &str = "pretty_125_covering_v2";
 
 /// Computes finite inclusive upper bounds using round 1/2/5 decimal steps.
 ///
@@ -32,8 +33,8 @@ pub fn pretty_upper_bounds(
             maximum: MAXIMUM_CLASSES,
         });
     }
-    let minimum = minimum.get();
-    let maximum = maximum.get();
+    let minimum = canonicalize_zero(minimum.get());
+    let maximum = canonicalize_zero(maximum.get());
     if minimum.total_cmp(&maximum).is_gt() {
         return Err(StylingError::InvalidPrettyRange);
     }
@@ -91,21 +92,28 @@ pub fn pretty_upper_bounds(
     }
     #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
     let interval_count = interval_count as usize;
-    (1..=interval_count)
+    let bounds = (1..=interval_count)
         .map(|index| {
             #[allow(clippy::cast_precision_loss)]
             let value = (start + index as f64) * unit;
             FiniteF64::new(if value == 0.0 { 0.0 } else { value })
                 .map_err(|_| StylingError::UnrepresentablePrettyRange)
         })
-        .collect()
+        .collect::<Result<Vec<_>, _>>()?;
+    if bounds.windows(2).any(|pair| pair[0] >= pair[1]) {
+        return Ok(vec![FiniteF64::new(maximum)?]);
+    }
+    if bounds.last().is_none_or(|bound| bound.get() < maximum) {
+        return Err(StylingError::UnrepresentablePrettyRange);
+    }
+    Ok(bounds)
 }
 
 fn covering_indices(minimum: f64, maximum: f64, unit: f64) -> Option<(f64, f64)> {
     let mut start = (minimum / unit + ROUNDING_EPSILON).floor();
     let mut end = (maximum / unit - ROUNDING_EPSILON).ceil();
     for _ in 0..4 {
-        if start * unit <= minimum + ROUNDING_EPSILON * unit {
+        if start * unit <= minimum {
             break;
         }
         let next = start - 1.0;
@@ -114,11 +122,11 @@ fn covering_indices(minimum: f64, maximum: f64, unit: f64) -> Option<(f64, f64)>
         }
         start = next;
     }
-    if start * unit > minimum + ROUNDING_EPSILON * unit {
+    if start * unit > minimum {
         return None;
     }
     for _ in 0..4 {
-        if end * unit >= maximum - ROUNDING_EPSILON * unit {
+        if end * unit >= maximum {
             break;
         }
         let next = end + 1.0;
@@ -127,7 +135,7 @@ fn covering_indices(minimum: f64, maximum: f64, unit: f64) -> Option<(f64, f64)>
         }
         end = next;
     }
-    if end * unit < maximum - ROUNDING_EPSILON * unit {
+    if end * unit < maximum {
         return None;
     }
     Some((start, end))

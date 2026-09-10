@@ -68,8 +68,9 @@ Viridis ramp. Do not expose its types.
 
 ## Consumer boundaries
 
-- `vectorizer-rs` retains canonical cubic output, `preview.png`, and artifact
-  v5. Styling output is separate.
+- `vectorizer-rs` retains canonical cubic output, `preview.png`, and its
+  artifact contracts. Its implemented `render` subcommand consumes this crate
+  and publishes separate styling output; consult its `docs/attribute-rendering.md`.
 - `spatial-io-rs` retains geometry conversion, coordinates, CRS, and formats.
 - Rerun retains graph, UI, interaction, and rendering behavior.
 - Consumers own translation to and from `attribute-styling` types.
