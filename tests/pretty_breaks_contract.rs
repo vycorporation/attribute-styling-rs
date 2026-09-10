@@ -305,3 +305,48 @@ fn pretty_style_reuses_explicit_zero_class_and_null_only_failures() {
     );
     assert_eq!(nulls, Err(StylingError::EmptyNumericInput));
 }
+
+#[test]
+fn near_round_endpoints_cover_and_assign_every_observed_value() {
+    for maximum in [1.0 - 1e-12, 1.0, 1.0 + 1e-12, -1.0 + 1e-12] {
+        let minimum = if maximum < 0.0 { -2.0 } else { 0.0 };
+        let plan = resolve_style(
+            &records(&[minimum, maximum]),
+            &StyleSpec {
+                filter: None,
+                classification: Classification::Numeric {
+                    attribute: "value".to_owned(),
+                    classifier: Classifier::Pretty { classes: 5 },
+                },
+                ramp: ColorRamp::Viridis { reversed: false },
+            },
+        )
+        .expect("finite covering pretty plan");
+        let bounds = upper_bounds(plan.classes());
+        assert!(bounds.last().expect("nonempty") >= &maximum);
+        assert!(bounds.windows(2).all(|pair| pair[0] < pair[1]));
+        for (assignment, observed) in plan.assignments().iter().zip([minimum, maximum]) {
+            let index = assignment
+                .class_index()
+                .expect("selected value has a class");
+            assert!(observed <= bounds[index]);
+            if index > 0 {
+                assert!(observed > bounds[index - 1]);
+            }
+        }
+    }
+}
+
+#[test]
+fn pretty_signed_zero_is_one_degenerate_numerical_value() {
+    for (minimum, maximum) in [(-0.0, 0.0), (0.0, -0.0)] {
+        let bounds = pretty_upper_bounds(
+            FiniteF64::new(minimum).expect("finite"),
+            FiniteF64::new(maximum).expect("finite"),
+            5,
+        )
+        .expect("equal numerical endpoints");
+        assert_eq!(bounds.len(), 1);
+        assert_eq!(bounds[0].get().to_bits(), 0.0_f64.to_bits());
+    }
+}

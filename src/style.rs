@@ -347,9 +347,11 @@ fn resolve_categorical(
     for feature in selected {
         let value = feature.attribute(attribute)?;
         if !matches!(value, AttributeValue::Null) {
-            categories
-                .entry(value.category_sort_key()?)
-                .or_insert((value.clone(), value.category_label()?));
+            let key = value.category_sort_key()?;
+            if !categories.contains_key(&key) {
+                require_class_count(categories.len() + 1)?;
+                categories.insert(key, (value.clone(), value.category_label()?));
+            }
         }
     }
     if categories.is_empty() {
@@ -437,9 +439,24 @@ fn resolve_numeric(
         }
         Classifier::Manual { upper_bounds } => {
             validate_manual_breaks(upper_bounds, *sorted.last().expect("non-empty"))?;
-            (Some(upper_bounds.len()), upper_bounds.clone())
+            (
+                Some(upper_bounds.len()),
+                upper_bounds
+                    .iter()
+                    .copied()
+                    .map(crate::model::canonicalize_zero)
+                    .collect(),
+            )
         }
     };
+    if upper_bounds.iter().any(|bound| !bound.is_finite())
+        || upper_bounds.windows(2).any(|pair| pair[0] >= pair[1])
+        || upper_bounds
+            .last()
+            .is_none_or(|bound| *bound < sorted[sorted.len() - 1])
+    {
+        return Err(StylingError::UnrepresentableNumericRange);
+    }
     let effective = upper_bounds.len();
     let minimum = sorted[0];
     let classes = upper_bounds
@@ -463,26 +480,26 @@ fn resolve_numeric(
     let assignments = values
         .into_iter()
         .map(|(feature, value)| match value {
-            None => FeatureStyleAssignment {
+            None => Ok(FeatureStyleAssignment {
                 feature_id: feature.feature_id().to_owned(),
                 class_index: None,
                 color: None,
                 ramp_position: None,
-            },
+            }),
             Some(value) => {
                 let index = upper_bounds
                     .iter()
                     .position(|upper| value <= *upper)
-                    .expect("validated breaks cover selected values");
-                FeatureStyleAssignment {
+                    .ok_or(StylingError::UnrepresentableNumericRange)?;
+                Ok(FeatureStyleAssignment {
                     feature_id: feature.feature_id().to_owned(),
                     class_index: Some(index),
                     color: Some(classes[index].color),
                     ramp_position: None,
-                }
+                })
             }
         })
-        .collect();
+        .collect::<Result<Vec<_>, StylingError>>()?;
     Ok(PartialPlan {
         assignments,
         classes,
@@ -518,6 +535,10 @@ fn resolve_continuous(
             Some(value) => {
                 let position = if minimum.total_cmp(&maximum) == Ordering::Equal {
                     0.5
+                } else if (maximum - minimum).is_infinite() {
+                    // Only opposite-sign finite endpoints can overflow the span.
+                    // Halving first preserves a finite numerator and denominator.
+                    (value * 0.5 - minimum * 0.5) / (maximum * 0.5 - minimum * 0.5)
                 } else {
                     (value - minimum) / (maximum - minimum)
                 };
@@ -568,16 +589,27 @@ fn equal_interval_breaks(sorted: &[f64], classes: usize) -> Vec<f64> {
     if minimum.total_cmp(&maximum) == Ordering::Equal {
         return vec![maximum];
     }
-    let width = (maximum - minimum) / classes as f64;
-    (1..=classes)
+    let span = maximum - minimum;
+    let width = span / classes as f64;
+    let mut bounds = (1..=classes)
         .map(|index| {
             if index == classes {
                 maximum
+            } else if span.is_infinite() {
+                let position = index as f64 / classes as f64;
+                // Weighted opposite-sign endpoints do not overflow, unlike span.
+                minimum * (1.0 - position) + maximum * position
+            } else if width == 0.0 || width.is_subnormal() {
+                minimum + span * (index as f64 / classes as f64)
             } else {
                 minimum + width * index as f64
             }
         })
-        .collect()
+        .map(crate::model::canonicalize_zero)
+        .collect::<Vec<_>>();
+    // A requested interval may have no distinct boundary at local f64 precision.
+    bounds.dedup();
+    bounds
 }
 
 #[allow(clippy::cast_precision_loss)]
@@ -631,11 +663,12 @@ fn quantile_breaks(sorted: &[f64], classes: usize) -> Vec<f64> {
 }
 
 fn validate_manual_breaks(upper_bounds: &[f64], maximum: f64) -> Result<(), StylingError> {
+    if upper_bounds.len() > MAXIMUM_CLASSES {
+        require_class_count(upper_bounds.len())?;
+    }
     if upper_bounds.is_empty()
         || upper_bounds.iter().any(|value| !value.is_finite())
-        || upper_bounds
-            .windows(2)
-            .any(|pair| pair[0].total_cmp(&pair[1]) != Ordering::Less)
+        || upper_bounds.windows(2).any(|pair| pair[0] >= pair[1])
     {
         return Err(StylingError::UnorderedManualBreaks);
     }

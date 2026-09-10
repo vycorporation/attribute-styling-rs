@@ -103,3 +103,113 @@ fn empty_boolean_groups_are_invalid() {
         Err(StylingError::EmptyBooleanExpression)
     );
 }
+
+#[test]
+fn boolean_short_circuit_cannot_hide_invalid_operands() {
+    let curve = feature(
+        "curve",
+        [
+            ("x", AttributeValue::Signed(1)),
+            ("kind", AttributeValue::Text("edge".to_owned())),
+            ("empty", AttributeValue::Null),
+        ],
+    );
+    let true_leaf = FilterExpression::Compare(Comparison::new(
+        "x",
+        ComparisonOperator::Equal,
+        AttributeValue::Signed(1),
+    ));
+    let false_leaf = FilterExpression::Compare(Comparison::new(
+        "x",
+        ComparisonOperator::Equal,
+        AttributeValue::Signed(2),
+    ));
+    for invalid in [
+        (
+            FilterExpression::IsNull {
+                attribute: "missing".to_owned(),
+            },
+            StylingError::UnknownAttribute("missing".to_owned()),
+        ),
+        (
+            FilterExpression::Compare(Comparison::new(
+                "kind",
+                ComparisonOperator::Equal,
+                AttributeValue::Signed(1),
+            )),
+            StylingError::IncompatibleTypes,
+        ),
+        (
+            FilterExpression::And(Vec::new()),
+            StylingError::EmptyBooleanExpression,
+        ),
+    ] {
+        for expression in [
+            FilterExpression::Or(vec![true_leaf.clone(), invalid.0.clone()]),
+            FilterExpression::And(vec![false_leaf.clone(), invalid.0.clone()]),
+        ] {
+            assert_eq!(evaluate_filter(&curve, &expression), Err(invalid.1.clone()));
+        }
+    }
+    assert_eq!(
+        evaluate_filter(
+            &curve,
+            &FilterExpression::In {
+                attribute: "x".to_owned(),
+                values: vec![
+                    AttributeValue::Signed(1),
+                    AttributeValue::Text("bad".to_owned())
+                ]
+            }
+        ),
+        Err(StylingError::IncompatibleTypes)
+    );
+}
+
+#[test]
+fn mixed_integer_filters_compare_exactly_without_lossy_conversion() {
+    let curve = feature(
+        "large",
+        [
+            ("u", AttributeValue::Unsigned(u64::MAX)),
+            ("i", AttributeValue::Signed(i64::MIN)),
+            ("empty", AttributeValue::Null),
+        ],
+    );
+    for (attribute, operator, literal) in [
+        (
+            "u",
+            ComparisonOperator::GreaterThan,
+            AttributeValue::Signed(i64::MAX),
+        ),
+        (
+            "i",
+            ComparisonOperator::LessThan,
+            AttributeValue::Unsigned(0),
+        ),
+        (
+            "u",
+            ComparisonOperator::Equal,
+            AttributeValue::Unsigned(u64::MAX),
+        ),
+    ] {
+        assert_eq!(
+            evaluate_filter(
+                &curve,
+                &FilterExpression::Compare(Comparison::new(attribute, operator, literal))
+            ),
+            Ok(true)
+        );
+    }
+    assert_eq!(
+        evaluate_filter(
+            &curve,
+            &FilterExpression::Compare(Comparison::new(
+                "u",
+                ComparisonOperator::GreaterThan,
+                AttributeValue::try_f64(0.0).expect("finite")
+            ))
+        ),
+        Err(StylingError::NumberOutsideExactF64Range)
+    );
+}
