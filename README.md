@@ -93,6 +93,14 @@ ties, nulls, ramp catalog semantics, and determinism.
 The first independent real-artifact check is recorded in
 [`docs/validation/2026-07-25-vectorizer-qgis.md`](docs/validation/2026-07-25-vectorizer-qgis.md).
 
+## Review status
+
+Last codebase review: **Sol 6.1 High**, **2026-10-04**, at commit
+[`bbe77cf`](https://github.com/vycorporation/attribute-styling-rs/commit/bbe77cf960eacf0105e69145d7b68666dd597ff1).
+Required validation passed. The review identified four unresolved findings
+involving `.stylx` UTF-8 handling, feature-record and resolved-plan
+deserialization invariants, and manual-break legend bounds.
+
 ## Validation
 
 ```bash
