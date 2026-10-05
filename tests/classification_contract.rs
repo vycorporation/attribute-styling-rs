@@ -114,6 +114,32 @@ fn manual_breaks_are_strict_and_must_cover_selected_values() {
 }
 
 #[test]
+fn manual_breaks_reject_inverted_first_interval() {
+    let result = resolve_style(
+        &records(&[10.0, 20.0]),
+        &viridis(Classification::Numeric {
+            attribute: "length".to_owned(),
+            classifier: Classifier::Manual {
+                upper_bounds: vec![0.0, 20.0],
+            },
+        }),
+    );
+    assert_eq!(result, Err(StylingError::ManualBreaksDoNotCoverValues));
+
+    let plan = resolve_style(
+        &records(&[10.0, 20.0]),
+        &viridis(Classification::Numeric {
+            attribute: "length".to_owned(),
+            classifier: Classifier::Manual {
+                upper_bounds: vec![10.0, 20.0],
+            },
+        }),
+    )
+    .expect("the first bound may equal the minimum");
+    assert_eq!(plan.classes()[0].label(), "[10, 10]");
+}
+
+#[test]
 fn degenerate_numeric_data_resolves_to_one_effective_class() {
     let plan = resolve_style(
         &records(&[4.0, 4.0, 4.0]),

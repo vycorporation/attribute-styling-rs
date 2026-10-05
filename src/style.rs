@@ -10,6 +10,8 @@ use crate::{
     StylingError, evaluate_filter, pretty_upper_bounds,
 };
 
+mod serde_validation;
+
 /// A numerical class-break algorithm.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "kind")]
@@ -76,6 +78,7 @@ pub struct StyleSpec {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FilterOutcome {
     /// Stable feature identity.
+    #[serde(deserialize_with = "crate::model::deserialize_feature_id")]
     feature_id: String,
     /// True when the feature is retained for style resolution.
     included: bool,
@@ -97,6 +100,7 @@ impl FilterOutcome {
 
 /// One resolved legend/class entry.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(try_from = "serde_validation::UncheckedClass")]
 pub struct StyleClass {
     /// Zero-based deterministic class index.
     index: usize,
@@ -145,6 +149,7 @@ impl StyleClass {
 
 /// The resolved style for one selected feature.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(try_from = "serde_validation::UncheckedAssignment")]
 pub struct FeatureStyleAssignment {
     /// Stable feature identity.
     feature_id: String,
@@ -184,6 +189,7 @@ impl FeatureStyleAssignment {
 
 /// An immutable deterministic style plan.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(try_from = "serde_validation::UncheckedPlan")]
 pub struct ResolvedStylePlan {
     /// Filter results in input order.
     filter_outcomes: Vec<FilterOutcome>,
@@ -438,7 +444,7 @@ fn resolve_numeric(
             )
         }
         Classifier::Manual { upper_bounds } => {
-            validate_manual_breaks(upper_bounds, *sorted.last().expect("non-empty"))?;
+            validate_manual_breaks(upper_bounds, sorted[0], *sorted.last().expect("non-empty"))?;
             (
                 Some(upper_bounds.len()),
                 upper_bounds
@@ -662,7 +668,11 @@ fn quantile_breaks(sorted: &[f64], classes: usize) -> Vec<f64> {
     breaks
 }
 
-fn validate_manual_breaks(upper_bounds: &[f64], maximum: f64) -> Result<(), StylingError> {
+fn validate_manual_breaks(
+    upper_bounds: &[f64],
+    minimum: f64,
+    maximum: f64,
+) -> Result<(), StylingError> {
     if upper_bounds.len() > MAXIMUM_CLASSES {
         require_class_count(upper_bounds.len())?;
     }
@@ -672,7 +682,7 @@ fn validate_manual_breaks(upper_bounds: &[f64], maximum: f64) -> Result<(), Styl
     {
         return Err(StylingError::UnorderedManualBreaks);
     }
-    if *upper_bounds.last().expect("non-empty") < maximum {
+    if upper_bounds[0] < minimum || *upper_bounds.last().expect("non-empty") < maximum {
         return Err(StylingError::ManualBreaksDoNotCoverValues);
     }
     Ok(())

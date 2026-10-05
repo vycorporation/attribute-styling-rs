@@ -94,6 +94,28 @@ impl Drop for TempStylx {
 }
 
 #[test]
+fn invalid_utf8_text_returns_an_error_without_panicking_or_writing() {
+    for field in ["CATEGORY", "NAME", "CONTENT", "KEY"] {
+        let fixture = TempStylx::new();
+        Connection::open(fixture.path())
+            .expect("open fixture")
+            .execute_batch(&format!(
+                "UPDATE ITEMS SET {field} = CAST(X'FF' AS TEXT) WHERE ID = 1"
+            ))
+            .expect("store malformed SQLite text");
+        let original = fs::read(fixture.path()).expect("original bytes");
+        assert!(matches!(
+            read_stylx(fixture.path()),
+            Err(StylxError::Database(_))
+        ));
+        assert_eq!(fs::read(fixture.path()).expect("final bytes"), original);
+        for suffix in ["-journal", "-wal", "-shm"] {
+            assert!(!Path::new(&format!("{}{suffix}", fixture.path().display())).exists());
+        }
+    }
+}
+
+#[test]
 fn reads_supported_fixed_rgb_and_reports_unsupported_ramps_without_writing() {
     let fixture = TempStylx::new();
     let original = fs::read(fixture.path()).expect("fixture bytes");
