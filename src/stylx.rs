@@ -5,7 +5,7 @@ use std::{
     path::Path,
 };
 
-use rusqlite::{Connection, OpenFlags, types::Value as SqlValue};
+use rusqlite::{Connection, OpenFlags, Row, types::ValueRef};
 use serde::Deserialize;
 use thiserror::Error;
 
@@ -389,17 +389,10 @@ fn read_catalog(connection: &Connection) -> Result<StylxCatalog, StylxError> {
     let mut names = BTreeSet::new();
     let mut keys = BTreeSet::new();
     while let Some(row) = rows.next().map_err(database_error)? {
-        let category = row.get::<_, SqlValue>(0).map_err(database_error)?;
-        let name = row.get::<_, SqlValue>(1).map_err(database_error)?;
-        let content = row.get::<_, SqlValue>(2).map_err(database_error)?;
-        let key = row.get::<_, SqlValue>(3).map_err(database_error)?;
-        let name = nonempty_text(name);
-        let key = nonempty_text(key);
-        let category = nonempty_text(category);
-        let content = match content {
-            SqlValue::Text(content) => Some(content),
-            _ => None,
-        };
+        let category = read_text(row, 0)?.filter(|value| !value.is_empty());
+        let name = read_text(row, 1)?.filter(|value| !value.is_empty());
+        let content = read_text(row, 2)?;
+        let key = read_text(row, 3)?.filter(|value| !value.is_empty());
         let Some(content) = content else {
             unsupported_entries.push(unsupported(
                 name,
@@ -545,10 +538,14 @@ fn exact_byte(value: f64, scale: f64) -> Result<u8, StylxUnsupportedReason> {
     }
 }
 
-fn nonempty_text(value: SqlValue) -> Option<String> {
-    match value {
-        SqlValue::Text(value) if !value.is_empty() => Some(value),
-        _ => None,
+fn read_text(row: &Row<'_>, index: usize) -> Result<Option<String>, StylxError> {
+    match row.get_ref(index).map_err(database_error)? {
+        ValueRef::Text(bytes) => std::str::from_utf8(bytes)
+            .map(|value| Some(value.to_owned()))
+            .map_err(|error| {
+                StylxError::Database(format!("invalid UTF-8 in column {index}: {error}"))
+            }),
+        _ => Ok(None),
     }
 }
 

@@ -31,3 +31,40 @@ fn scalar_model_preserves_supported_types() {
 
     assert_eq!(values.len(), 6);
 }
+
+#[test]
+fn feature_record_deserialization_rejects_empty_identity() {
+    let error = serde_json::from_str::<attribute_styling::FeatureRecord>(
+        r#"{"feature_id":"","attributes":{}}"#,
+    )
+    .expect_err("empty identities must fail during deserialization");
+    assert!(
+        error
+            .to_string()
+            .contains("feature identities must not be empty")
+    );
+}
+
+#[test]
+fn feature_record_round_trip_preserves_identity_and_typed_attributes() {
+    let expected = attribute_styling::FeatureRecord::new(
+        "curve-α",
+        std::collections::BTreeMap::from([
+            ("null".to_owned(), AttributeValue::Null),
+            ("boolean".to_owned(), AttributeValue::Boolean(true)),
+            ("signed".to_owned(), AttributeValue::Signed(i64::MIN)),
+            ("unsigned".to_owned(), AttributeValue::Unsigned(u64::MAX)),
+            (
+                "float".to_owned(),
+                AttributeValue::try_f64(1.5).expect("finite"),
+            ),
+            ("text".to_owned(), AttributeValue::Text("色".to_owned())),
+        ]),
+    )
+    .expect("feature");
+    let decoded = serde_json::from_str::<attribute_styling::FeatureRecord>(
+        &serde_json::to_string(&expected).expect("serialize"),
+    )
+    .expect("validated feature");
+    assert_eq!(decoded, expected);
+}

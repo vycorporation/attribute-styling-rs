@@ -97,9 +97,15 @@ The first independent real-artifact check is recorded in
 
 Last codebase review: **Sol 6.1 High**, **2026-10-04**, at commit
 [`bbe77cf`](https://github.com/vycorporation/attribute-styling-rs/commit/bbe77cf960eacf0105e69145d7b68666dd597ff1).
-Required validation passed. The review identified four unresolved findings
+Required validation passed. The review identified four findings
 involving `.stylx` UTF-8 handling, feature-record and resolved-plan
-deserialization invariants, and manual-break legend bounds.
+deserialization invariants, and manual-break legend bounds. All four are
+corrected in version **0.1.1**; see [the changelog](CHANGELOG.md).
+
+The crate version is declared in `Cargo.toml`. Compatible fixes increment the
+patch version; breaking public API changes increment the minor version while
+the crate remains below 1.0. Each version's changes are recorded in the
+changelog. A repository version does not imply publication to crates.io.
 
 ## Validation
 

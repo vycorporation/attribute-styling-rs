@@ -90,8 +90,8 @@ pub enum StylingError {
     /// Manual upper bounds were empty, non-finite, or not strictly increasing.
     #[error("manual upper bounds must be finite and strictly increasing")]
     UnorderedManualBreaks,
-    /// The last manual upper bound did not cover the selected maximum.
-    #[error("manual upper bounds do not cover every selected value")]
+    /// The first manual bound was below the minimum, or the last did not cover the maximum.
+    #[error("manual upper bounds must start at or above the minimum and cover the maximum")]
     ManualBreaksDoNotCoverValues,
     /// A ramp sample or custom stop position was not finite and in [0, 1].
     #[error("color-ramp positions must be finite and in the closed interval [0, 1]")]

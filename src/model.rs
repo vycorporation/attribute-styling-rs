@@ -163,9 +163,21 @@ impl<'de> Deserialize<'de> for FiniteF64 {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct FeatureRecord {
     /// Caller-owned stable identity.
+    #[serde(deserialize_with = "deserialize_feature_id")]
     feature_id: String,
     /// Deterministically ordered named attributes.
     attributes: BTreeMap<String, AttributeValue>,
+}
+
+pub(crate) fn deserialize_feature_id<'de, D>(deserializer: D) -> Result<String, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = String::deserialize(deserializer)?;
+    if value.is_empty() {
+        return Err(de::Error::custom(StylingError::EmptyFeatureId));
+    }
+    Ok(value)
 }
 
 impl FeatureRecord {

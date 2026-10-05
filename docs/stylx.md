@@ -40,6 +40,9 @@ ascending `ID` order.
 trailing NUL used by observed ArcGIS Pro style files is accepted as storage
 termination; embedded or repeated trailing NULs are malformed. Binary or
 compressed blobs are reported as unsupported and are never decoded.
+Invalid UTF-8 in SQLite TEXT fields used by the reader (`CATEGORY`, `NAME`,
+`CONTENT`, or `KEY`) fails inspection with `StylxError::Database` rather than
+panicking or replacing malformed bytes.
 
 ## Supported CIM subset
 

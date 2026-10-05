@@ -52,7 +52,11 @@ boundaries are removed, so the effective class count may be smaller than the
 request.
 
 Manual classification accepts strictly increasing, finite inclusive upper
-bounds. The final bound must cover the observed maximum.
+bounds. The first bound must be at or above the observed minimum, and the final
+bound must cover the observed maximum. A first bound below the minimum fails
+with `ManualBreaksDoNotCoverValues` rather than creating an inverted interval.
+The first bound may equal the minimum. Later intervals may be unpopulated;
+their declared bounds and requested count are retained.
 
 Pretty classification uses the crate-owned
 `pretty_125_covering_v2` contract. Given a non-degenerate finite observed
@@ -107,6 +111,26 @@ maximum to `1`, and intermediate values linearly between them. Degenerate
 values use position `0.5`. Opposite-sign extreme finite endpoints use scaled
 normalization to avoid overflowing intermediate differences. It creates no
 artificial classes.
+
+## Serialized plans
+
+Feature-record deserialization enforces the same non-empty identity rule as
+`FeatureRecord::new`. Resolved results retain their existing serialized field
+shape and `Deserialize` support. Deserialization rejects inconsistent counts,
+class indices, legends, bounds, selected feature identities
+or order, class colors, and null/classified/continuous assignment shapes.
+Numerical bounds must be finite, paired, ordered, and contiguous. Continuous
+positions must be finite and in `[0, 1]`. Class and legend collections are
+limited to 4,096 entries during deserialization, before an unbounded collection
+can be allocated.
+
+Stored labels are preserved and must agree between classes and the legend.
+They are not regenerated from decoded bounds, because a serialization format
+may round floating-point values differently from the original display text.
+
+These are structural checks on the stored plan. Original attributes and the
+style specification are not present in the plan, so deserialization cannot
+recompute classification decisions or attest the source data.
 
 ## Color ramps
 
