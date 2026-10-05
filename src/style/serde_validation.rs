@@ -7,9 +7,7 @@ use serde::{
     de::{self, SeqAccess, Visitor},
 };
 
-use super::{
-    FeatureStyleAssignment, FilterOutcome, ResolvedStylePlan, StyleClass, format_numeric_label,
-};
+use super::{FeatureStyleAssignment, FilterOutcome, ResolvedStylePlan, StyleClass};
 use crate::{MAXIMUM_CLASSES, Rgba};
 
 #[derive(Deserialize)]
@@ -133,13 +131,11 @@ fn validate_plan(plan: &ResolvedStylePlan) -> Result<(), &'static str> {
         if class.index != index || class.lower_bound.is_some() != numeric {
             return Err("classes must have sequential indices and a consistent kind");
         }
-        if let (Some(lower), Some(upper)) = (class.lower_bound, class.upper_bound) {
-            if index > 0 && (Some(lower) != plan.classes[index - 1].upper_bound || lower >= upper) {
-                return Err("numerical classes must have contiguous, increasing bounds");
-            }
-            if class.label != format_numeric_label(lower, upper, index == 0) {
-                return Err("numerical labels must match class bounds");
-            }
+        if let (Some(lower), Some(upper)) = (class.lower_bound, class.upper_bound)
+            && index > 0
+            && (Some(lower) != plan.classes[index - 1].upper_bound || lower >= upper)
+        {
+            return Err("numerical classes must have contiguous, increasing bounds");
         }
     }
     let mut identities = BTreeSet::new();

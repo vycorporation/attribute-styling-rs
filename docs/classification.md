@@ -117,12 +117,16 @@ artificial classes.
 Feature-record deserialization enforces the same non-empty identity rule as
 `FeatureRecord::new`. Resolved results retain their existing serialized field
 shape and `Deserialize` support. Deserialization rejects inconsistent counts,
-class indices, legends, bounds, numerical labels, selected feature identities
+class indices, legends, bounds, selected feature identities
 or order, class colors, and null/classified/continuous assignment shapes.
 Numerical bounds must be finite, paired, ordered, and contiguous. Continuous
 positions must be finite and in `[0, 1]`. Class and legend collections are
 limited to 4,096 entries during deserialization, before an unbounded collection
 can be allocated.
+
+Stored labels are preserved and must agree between classes and the legend.
+They are not regenerated from decoded bounds, because a serialization format
+may round floating-point values differently from the original display text.
 
 These are structural checks on the stored plan. Original attributes and the
 style specification are not present in the plan, so deserialization cannot

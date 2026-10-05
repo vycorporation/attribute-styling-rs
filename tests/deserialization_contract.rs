@@ -66,7 +66,6 @@ fn resolved_plan_deserialization_rejects_inconsistent_fields() {
         ("/classes/0/index", json!(1)),
         ("/classes/0/lower_bound", json!(16.0)),
         ("/classes/0/upper_bound", Value::Null),
-        ("/classes/0/label", json!("wrong interval")),
         ("/classes/1/lower_bound", json!(14.0)),
         ("/legend/0/label", json!("wrong legend")),
         ("/assignments", json!([])),
@@ -201,5 +200,51 @@ fn independently_deserialized_result_entries_validate_local_invariants() {
     assignment["ramp_position"] = json!(2.0);
     assert!(
         serde_json::from_value::<attribute_styling::FeatureStyleAssignment>(assignment).is_err()
+    );
+}
+
+#[test]
+fn numeric_round_trips_preserve_labels_across_json_float_precision() {
+    let features = [3.473_299_760_545_857e-121, 5.209_949_640_818_785e-121]
+        .into_iter()
+        .enumerate()
+        .map(|(index, value)| {
+            FeatureRecord::new(
+                index.to_string(),
+                BTreeMap::from([(
+                    "value".to_owned(),
+                    AttributeValue::try_f64(value).expect("finite"),
+                )]),
+            )
+            .expect("feature")
+        })
+        .collect::<Vec<_>>();
+    let expected = resolve_style(
+        &features,
+        &StyleSpec {
+            filter: None,
+            classification: Classification::Numeric {
+                attribute: "value".to_owned(),
+                classifier: Classifier::EqualInterval { classes: 2 },
+            },
+            ramp: ColorRamp::Viridis { reversed: false },
+        },
+    )
+    .expect("numeric plan");
+    let decoded: ResolvedStylePlan =
+        serde_json::from_str(&serde_json::to_string(&expected).expect("serialize"))
+            .expect("a valid plan must survive JSON float rounding");
+    assert_eq!(decoded.assignments(), expected.assignments());
+    assert_eq!(
+        decoded
+            .classes()
+            .iter()
+            .map(attribute_styling::StyleClass::label)
+            .collect::<Vec<_>>(),
+        expected
+            .classes()
+            .iter()
+            .map(attribute_styling::StyleClass::label)
+            .collect::<Vec<_>>()
     );
 }
