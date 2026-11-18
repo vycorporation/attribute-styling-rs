@@ -47,6 +47,45 @@ curve output and write separate caller-selected artifacts. It retains ownership
 of canonical `preview.png`, cubic outputs, and their artifact contracts; see its
 [current rendering contract](https://github.com/vycorporation/vectorizer-rs/blob/main/docs/attribute-rendering.md).
 
+## GIS styling references
+
+Use these projects as design and comparison references, not automatic dependencies
+or numerical authorities:
+
+- [RustGIS](https://github.com/opengeos/RustGIS), especially its
+  [cartography guide](https://github.com/opengeos/RustGIS/blob/main/docs/user-guide/cartography.md),
+  for classification methods, manual breaks, color ramps, and legend semantics.
+- [GeoLibre](https://github.com/opengeos/GeoLibre), especially its
+  [styling guide](https://github.com/opengeos/GeoLibre/blob/main/docs/user-guide/styling.md),
+  for graduated/categorical/rule-based styling, class controls, normalization,
+  and how those choices are explained in the UI and legends.
+
+Classification, ramps, filters, and immutable style-plan semantics belong here;
+consumers such as `aries-render-rs` should reuse them rather than implement
+another classifier. Rendering, export, and GUI controls remain consumer-owned.
+Evaluate new methods against independent fixtures covering nulls, ties, boundaries,
+degenerate inputs, and requested versus effective class counts before adoption.
+These references do not imply implemented feature parity.
+
+RustGIS's repository code is Apache-2.0 and GeoLibre's is MIT; palette data and
+other bundled assets can have separate notices. Check the exact source and asset
+licenses before copying code or palettes. This reference adds no dependency.
+
+### What to borrow, and what to validate
+
+Use RustGIS as a reference for classifier and ramp-interchange breadth, and
+GeoLibre for clear consumer controls: attribute, method, class count, and ramp,
+with a preview before applying. A legend should state the method actually used;
+editing computed breaks should produce an explicit manual-break plan, not keep
+the old automatic-method label.
+
+The immediate classification gaps here are the already-deferred Jenks and
+standard-deviation methods. Do not adopt reference algorithms by name alone:
+RustGIS's Jenks code samples at most 1,000 values, and the two projects document
+different geometric-interval behavior for nonpositive values. Pin and test
+sampling, variance convention, boundaries, ties, and invalid-domain policies.
+Keep these enhancements separate from existing renderer delivery acceptance.
+
 ## Example
 
 ```rust
