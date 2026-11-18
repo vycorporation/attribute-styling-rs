@@ -192,11 +192,55 @@ and reject requests above their capacity. Reversal reverses the selected
 fixed sequence. The optional `.stylx` adapter returns this ordinary crate-owned
 variant without exposing SQLite or CIM types.
 
-## Deferred reference classifiers
+## Statistical classifiers
 
-Jenks natural breaks and standard-deviation classification are not aliases for
-the implemented algorithms. Each requires its own issue, reference fixtures,
-and performance bounds before becoming public behavior.
+Both new classifiers use the existing finite numeric input conversion, null exclusion, inclusive upper bounds, stable feature order, color assignment and immutable-plan contracts.
+The requested count must be in `1..=4096`; constant inputs and a request for one class yield one class.
+Nulls receive no class/color; all-null inputs return `EmptyNumericInput`.
+
+### Jenks natural breaks
+
+Use `Classifier::Jenks { classes: 5 }`, or `{"kind":"jenks","classes":5}` in serialized specifications.
+The implementation minimizes within-class squared error over sorted distinct values weighted by their observation frequency.
+It does not sample, split equal values, or silently substitute quantiles.
+The effective count is the smaller of the requested count and the number of distinct values.
+Every bound is an observed value, and the final bound is the observed maximum.
+Equal computed candidate costs choose the earliest split.
+
+The implementation uses divide-and-conquer dynamic programming with balanced weighted-moment range queries, avoiding unstable subtraction of raw prefix squared sums.
+For `n` observations, `m` distinct values and `k` effective classes, sorting costs `O(n log n)`, optimization costs `O(k m log² m)`, and backpointer storage costs `O(k m)`.
+The DP is unsampled but still uses `f64` arithmetic: it does not promise exact-real arithmetic or identity with other software's sampling and tie conventions.
+Small cases are checked against an independent exhaustive partition oracle.
+
+Before allocating backpointers, `(m+1)*(k+1)` is checked against 16,777,216 cells (128 MiB on a 64-bit host).
+Exceeding that bound or failing the checked backpointer allocation returns `ClassificationWorkspaceExceeded`, not a sampled or reduced-class result.
+One-class and one-class-per-distinct-value requests bypass the DP allocation.
+This workspace bound is separate from observation count; repeated U8/U16 values have at most 256/65,536 distinct values.
+Other input/plan arrays still scale with the observations.
+
+### Standard deviation
+
+Use `Classifier::StandardDeviation { classes: 5 }`, or `{"kind":"standard_deviation","classes":5}`.
+For requested count `k`, interior cuts are `mean + (i - k/2) * sigma`, for `i=1..k-1`, using **population** variance (division by `n`, not `n-1`).
+Only distinct representable cuts strictly inside the observed minimum/maximum are retained; the observed maximum is appended.
+Consequently the effective count can be smaller, and interior classes can be empty.
+Even `k` places a cut at the mean; odd `k` gives a central interval spanning the mean.
+In particular, `k=2` divides at the mean independently of sigma.
+This differs deliberately from the sample-sigma domain used for normalized continuous styling.
+Moments are accumulated over all non-null observations in sorted order, making results invariant to feature permutation.
+
+### Numerical limits and references
+
+Both algorithms normalize the observed range before moment calculations to avoid overflowing squared values.
+Finite opposite-sign endpoints whose direct subtraction overflows are handled with half-scaled arithmetic.
+If normalization collapses distinct observations to the same floating-point value, resolution returns `UnrepresentableNumericRange` instead of silently merging them.
+Jenks also rejects normalized adjacent gaps whose square would be zero or subnormal, preventing underflow from changing the optimization objective.
+Bounds are returned in original units; rounded duplicate standard-deviation cuts are removed.
+
+Primary design references are [RustGIS cartography](https://github.com/opengeos/RustGIS/blob/main/docs/user-guide/cartography.md) and [GeoLibre styling](https://github.com/opengeos/GeoLibre/blob/main/docs/user-guide/styling.md).
+RustGIS's inspected Jenks implementation samples at most 1,000 values; this crate intentionally preserves all observations.
+These references guide methods and explanation, not a claim of QGIS/ArcGIS/renderer or screenshot parity.
+The tests include cluster fixtures, weighted ties, an exhaustive partition oracle, population-sigma fixtures, nulls, round trips, subnormals, extreme finite ranges and a repeated-byte distribution.
 
 ## Normalized continuous extension
 

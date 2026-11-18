@@ -25,7 +25,7 @@ The first functional release provides:
 - dependency-neutral feature records and typed scalar attributes;
 - null, comparison, membership, and Boolean-composition filters;
 - single, categorical, equal-interval, quantile/equal-count, pretty,
-  manual-break, and continuous classification;
+  Jenks natural breaks, population-standard-deviation, manual-break, and continuous classification;
 - a crate-owned RGBA contract, all 48 supported named `colorous` presets,
   custom stops, and reversal;
 - deterministic class boundaries, assignments, colors, filter outcomes, and
@@ -33,8 +33,9 @@ The first functional release provides:
 - explicit null, tie, boundary, degenerate-input, and requested/effective class
   semantics.
 
-Natural breaks (Jenks) and standard-deviation classification remain separate
-follow-up slices requiring reference fixtures.
+Jenks uses every observation (weighted ties), not a sampled approximation.
+Standard-deviation classes use population sigma and mean-centered cuts.
+See [statistical classifier contracts](docs/classification.md#statistical-classifiers) for boundaries, numerical and resource limits.
 
 The optional `stylx` feature adds a narrow read-only adapter for
 caller-provided ArcGIS Pro style databases. It imports only fixed ramps made
@@ -49,8 +50,7 @@ of canonical `preview.png`, cubic outputs, and their artifact contracts; see its
 
 ## GIS styling references
 
-Use these projects as design and comparison references, not automatic dependencies
-or numerical authorities:
+Use these projects as primary design and comparison references, not automatic dependencies, numerical authorities, or limits on palette coverage:
 
 - [RustGIS](https://github.com/opengeos/RustGIS), especially its
   [cartography guide](https://github.com/opengeos/RustGIS/blob/main/docs/user-guide/cartography.md),
@@ -79,8 +79,8 @@ with a preview before applying. A legend should state the method actually used;
 editing computed breaks should produce an explicit manual-break plan, not keep
 the old automatic-method label.
 
-The immediate classification gaps here are the already-deferred Jenks and
-standard-deviation methods. Do not adopt reference algorithms by name alone:
+Jenks and standard-deviation classification are implemented with explicit crate-owned contracts.
+Do not adopt reference algorithms by name alone:
 RustGIS's Jenks code samples at most 1,000 values, and the two projects document
 different geometric-interval behavior for nonpositive values. Pin and test
 sampling, variance convention, boundaries, ties, and invalid-domain policies.
@@ -175,3 +175,5 @@ numeric-domain and ramp metadata for consumer-owned gradient legends. Existing
 continuous/discrete requests are unchanged. See the
 [normalization contract](docs/design/numeric-normalization.md); renderer/CLI
 integration and end-to-end Java comparison are separate consumer work.
+
+See [palette coverage and licensing](docs/dependencies.md#gis-reference-and-palette-policy) for how these references inform future additions without restricting the catalog.

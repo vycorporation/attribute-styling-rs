@@ -9,6 +9,7 @@ mod model;
 mod normalization;
 mod pretty;
 mod ramp;
+mod statistical;
 mod style;
 #[cfg(feature = "stylx")]
 mod stylx;
@@ -41,6 +42,11 @@ use thiserror::Error;
 #[derive(Clone, Debug, Error, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum StylingError {
+    /// Exact classification backpointers exceed the bounded workspace or allocation fails.
+    #[error(
+        "exact classification exceeds its 16,777,216-cell workspace; reduce the class count or classify an explicit caller-provided summary"
+    )]
+    ClassificationWorkspaceExceeded,
     /// Sample standard deviation needs at least two non-null values.
     #[error("sample standard deviation requires at least two numeric values")]
     InsufficientStandardDeviationValues,

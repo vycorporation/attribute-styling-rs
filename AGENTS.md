@@ -98,3 +98,13 @@ git diff --check
 
 Do not claim QGIS, ArcGIS, DuckDB, Sedona, or renderer parity without
 fixture-backed independent evidence.
+
+## GIS design references
+
+Use [RustGIS](https://github.com/opengeos/RustGIS) and [GeoLibre](https://github.com/opengeos/GeoLibre) as the primary references for classifier, ramp, legend and consumer styling behavior.
+They are not required dependencies, exact numerical authorities, or an exhaustive palette list.
+Keep classifier semantics and palettes here; consumer UIs and painting stay in consumers.
+Read `docs/classification.md` and `docs/dependencies.md` before changing algorithms or importing palettes.
+Preserve unsampled weighted Jenks semantics, population-sigma classification, explicit resource errors, deterministic ties, and immutable resolved plans.
+Do not confuse population-standard-deviation classes with the sample-sigma continuous normalization domain.
+Validate new palettes and source-specific licensing before importing assets, and retain the versioned existing catalog contract.

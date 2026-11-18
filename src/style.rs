@@ -32,6 +32,16 @@ pub enum Classifier {
         /// Requested approximate class count.
         classes: usize,
     },
+    /// Unsampled minimum within-class squared-error natural breaks.
+    Jenks {
+        /// Requested class count, capped at the number of distinct values.
+        classes: usize,
+    },
+    /// Mean-centered intervals measured in population standard deviations.
+    StandardDeviation {
+        /// Requested class count; out-of-range or rounded duplicate cuts are omitted.
+        classes: usize,
+    },
     /// Caller-supplied inclusive upper bounds.
     Manual {
         /// Strictly increasing finite inclusive upper bounds.
@@ -446,39 +456,7 @@ fn resolve_numeric(
     }
     sorted.sort_by(f64::total_cmp);
 
-    let (requested, upper_bounds) = match classifier {
-        Classifier::EqualInterval { classes } => {
-            require_class_count(*classes)?;
-            (Some(*classes), equal_interval_breaks(&sorted, *classes))
-        }
-        Classifier::Quantile { classes } => {
-            require_class_count(*classes)?;
-            (Some(*classes), quantile_breaks(&sorted, *classes))
-        }
-        Classifier::Pretty { classes } => {
-            require_class_count(*classes)?;
-            let minimum = FiniteF64::new(sorted[0])?;
-            let maximum = FiniteF64::new(*sorted.last().expect("non-empty"))?;
-            (
-                Some(*classes),
-                pretty_upper_bounds(minimum, maximum, *classes)?
-                    .into_iter()
-                    .map(FiniteF64::get)
-                    .collect(),
-            )
-        }
-        Classifier::Manual { upper_bounds } => {
-            validate_manual_breaks(upper_bounds, sorted[0], *sorted.last().expect("non-empty"))?;
-            (
-                Some(upper_bounds.len()),
-                upper_bounds
-                    .iter()
-                    .copied()
-                    .map(crate::model::canonicalize_zero)
-                    .collect(),
-            )
-        }
-    };
+    let (requested, upper_bounds) = numeric_breaks(&sorted, classifier)?;
     if upper_bounds.iter().any(|bound| !bound.is_finite())
         || upper_bounds.windows(2).any(|pair| pair[0] >= pair[1])
         || upper_bounds
@@ -536,6 +514,56 @@ fn resolve_numeric(
         classes,
         requested_class_count: requested,
         effective_class_count: effective,
+    })
+}
+
+fn numeric_breaks(
+    sorted: &[f64],
+    classifier: &Classifier,
+) -> Result<(Option<usize>, Vec<f64>), StylingError> {
+    Ok(match classifier {
+        Classifier::EqualInterval { classes } => {
+            require_class_count(*classes)?;
+            (Some(*classes), equal_interval_breaks(sorted, *classes))
+        }
+        Classifier::Quantile { classes } => {
+            require_class_count(*classes)?;
+            (Some(*classes), quantile_breaks(sorted, *classes))
+        }
+        Classifier::Pretty { classes } => {
+            require_class_count(*classes)?;
+            let minimum = FiniteF64::new(sorted[0])?;
+            let maximum = FiniteF64::new(*sorted.last().expect("non-empty"))?;
+            (
+                Some(*classes),
+                pretty_upper_bounds(minimum, maximum, *classes)?
+                    .into_iter()
+                    .map(FiniteF64::get)
+                    .collect(),
+            )
+        }
+        Classifier::Jenks { classes } => {
+            require_class_count(*classes)?;
+            (Some(*classes), crate::statistical::jenks(sorted, *classes)?)
+        }
+        Classifier::StandardDeviation { classes } => {
+            require_class_count(*classes)?;
+            (
+                Some(*classes),
+                crate::statistical::standard_deviation(sorted, *classes)?,
+            )
+        }
+        Classifier::Manual { upper_bounds } => {
+            validate_manual_breaks(upper_bounds, sorted[0], *sorted.last().expect("non-empty"))?;
+            (
+                Some(upper_bounds.len()),
+                upper_bounds
+                    .iter()
+                    .copied()
+                    .map(crate::model::canonicalize_zero)
+                    .collect(),
+            )
+        }
     })
 }
 
