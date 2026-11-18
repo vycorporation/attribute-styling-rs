@@ -80,6 +80,8 @@ impl TryFrom<UncheckedAssignment> for FeatureStyleAssignment {
 #[derive(Deserialize)]
 #[serde(rename = "ResolvedStylePlan")]
 pub(super) struct UncheckedPlan {
+    #[serde(default)]
+    normalization: Option<crate::ResolvedNormalization>,
     filter_outcomes: Vec<FilterOutcome>,
     assignments: Vec<FeatureStyleAssignment>,
     #[serde(deserialize_with = "deserialize_classes")]
@@ -95,6 +97,7 @@ impl TryFrom<UncheckedPlan> for ResolvedStylePlan {
 
     fn try_from(value: UncheckedPlan) -> Result<Self, Self::Error> {
         let plan = Self {
+            normalization: value.normalization,
             filter_outcomes: value.filter_outcomes,
             assignments: value.assignments,
             classes: value.classes,
@@ -119,6 +122,9 @@ fn validate_plan(plan: &ResolvedStylePlan) -> Result<(), &'static str> {
         .is_some_and(|count| !(1..=MAXIMUM_CLASSES).contains(&count))
     {
         return Err("requested class count must be in 1..=4096");
+    }
+    if plan.normalization.is_some() && !plan.classes.is_empty() {
+        return Err("normalization requires a continuous plan");
     }
     let numeric = plan
         .classes
@@ -154,6 +160,12 @@ fn validate_plan(plan: &ResolvedStylePlan) -> Result<(), &'static str> {
     for (outcome, assignment) in selected.zip(&plan.assignments) {
         if outcome.feature_id != assignment.feature_id {
             return Err("assignments must preserve selected feature identity and order");
+        }
+        if let (Some(normalization), Some(position)) =
+            (&plan.normalization, assignment.ramp_position)
+            && normalization.sample_color(position).ok() != assignment.color
+        {
+            return Err("normalized assignment color must match frozen ramp");
         }
         if assignment.color.is_none() {
             continue;

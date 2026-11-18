@@ -197,3 +197,12 @@ variant without exposing SQLite or CIM types.
 Jenks natural breaks and standard-deviation classification are not aliases for
 the implemented algorithms. Each requires its own issue, reference fixtures,
 and performance bounds before becoming public behavior.
+
+## Normalized continuous extension
+
+`ContinuousNormalized` adds typed observed/explicit/percentile-trim/sample-sigma
+numeric domains and linear/log mapping, with immutable original-unit legend
+evidence. It does not change legacy `Continuous` plans or add discrete classes.
+See [the normalization contract](design/numeric-normalization.md) for exact
+clipping, nulls, percentile interpolation, sample-size, overflow, serialized
+validation, and deliberate Java-reference differences.

@@ -6,6 +6,7 @@
 
 mod filter;
 mod model;
+mod normalization;
 mod pretty;
 mod ramp;
 mod style;
@@ -16,6 +17,9 @@ pub(crate) const MAXIMUM_CLASSES: usize = 4096;
 
 pub use filter::{Comparison, ComparisonOperator, FilterExpression, evaluate_filter};
 pub use model::{AttributeValue, FeatureRecord, FiniteF64};
+pub use normalization::{
+    NumericDomain, NumericNormalization, NumericTransform, ResolvedNormalization,
+};
 pub use pretty::{PRETTY_BREAKS_IDENTITY, pretty_upper_bounds};
 pub use ramp::{
     BUILT_IN_RAMP_CATALOG_IDENTITY, BuiltInRamp, BuiltInRampKind,
@@ -37,6 +41,15 @@ use thiserror::Error;
 #[derive(Clone, Debug, Error, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum StylingError {
+    /// Sample standard deviation needs at least two non-null values.
+    #[error("sample standard deviation requires at least two numeric values")]
+    InsufficientStandardDeviationValues,
+    /// Invalid or unrepresentable normalization parameters/domain.
+    #[error("normalization requires finite, ordered, representable bounds and valid parameters")]
+    InvalidNormalization,
+    /// Logarithmic styling cannot represent nonpositive values.
+    #[error("log normalization requires positive observations and bounds")]
+    NonPositiveLogValue,
     /// A numerical attribute was NaN or infinite.
     #[error("numerical attributes must be finite")]
     NonFiniteNumber,
