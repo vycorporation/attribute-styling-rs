@@ -26,3 +26,23 @@ this crate's Rust 1.89 MSRV gate; its types remain private.
 Default features are empty. A default build therefore has no SQLite, JSON, C
 compiler, ArcGIS, network, or style-file dependency. The optional adapter
 opens only a caller-provided local database in read-only mode.
+
+## GIS reference and palette policy
+
+| Area | Current crate | Reference and direction |
+| --- | --- | --- |
+| Named catalog | All 48 `colorous` 1.0.16 presets, with stable names and kind metadata | RustGIS documents broader Matplotlib/cmocean coverage and GeoLibre-compatible names; consider additional scientifically useful palettes, not an arbitrary 48-palette ceiling. |
+| Custom ramps | Caller-owned positioned stops, reversal, fixed RGBA lists | RustGIS supports custom ramps and QGIS/GDAL/GMT interchange; consider narrowly scoped importers when needed instead of adopting a GIS runtime. |
+| Classifiers | Unsampled weighted Jenks and population-sigma classes alongside existing modes | RustGIS/GeoLibre are primary design references; algorithms with the same name can differ in sampling, tie and interval conventions. |
+| Legends and UI | Immutable classes and assignments; UI owned by consumers | GeoLibre's preview-before-apply and explicit manual mode after editing breaks are useful interaction references. |
+
+No palette is excluded merely because it is absent from these projects.
+The existing versioned 48-preset catalog remains stable; future additions must define naming, provenance, interpolation, categorical capacity and reproducible colors.
+Do not silently cycle an exhausted categorical palette or relabel an approximate classifier.
+
+RustGIS repository code is Apache-2.0; GeoLibre repository code is MIT.
+Those repository licenses do not automatically cover every palette, bundled image or third-party asset.
+Check exact files and asset attribution before copying; retain required notices.
+This implementation introduces no new dependency or copied palette data.
+A larger precomputed ramp table generally costs binary/data size rather than per-feature classification time; avoid loading a GIS application merely to sample colors.
+Resolve and reuse a style plan rather than rerunning classification during every redraw.
