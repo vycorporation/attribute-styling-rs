@@ -11,6 +11,7 @@ use crate::{
 };
 
 mod serde_validation;
+use crate::{NumericNormalization, ResolvedNormalization};
 
 /// A numerical class-break algorithm.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -55,6 +56,13 @@ pub enum Classification {
         attribute: String,
         /// Break algorithm.
         classifier: Classifier,
+    },
+    /// Continuous interpolation with an explicit typed normalization policy.
+    ContinuousNormalized {
+        /// Attribute name.
+        attribute: String,
+        /// Domain and mapping policy.
+        normalization: NumericNormalization,
     },
     /// Unclassified interpolation across the observed numerical extent.
     Continuous {
@@ -191,6 +199,9 @@ impl FeatureStyleAssignment {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "serde_validation::UncheckedPlan")]
 pub struct ResolvedStylePlan {
+    /// Optional frozen normalized-continuous domain and ramp.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    normalization: Option<ResolvedNormalization>,
     /// Filter results in input order.
     filter_outcomes: Vec<FilterOutcome>,
     /// Selected-feature assignments in input order.
@@ -206,6 +217,11 @@ pub struct ResolvedStylePlan {
 }
 
 impl ResolvedStylePlan {
+    /// Returns frozen normalization evidence for the normalized-continuous variant.
+    #[must_use]
+    pub const fn normalization(&self) -> Option<&ResolvedNormalization> {
+        self.normalization.as_ref()
+    }
     /// Returns filter results in input order.
     #[must_use]
     pub fn filter_outcomes(&self) -> &[FilterOutcome] {
@@ -285,6 +301,10 @@ pub fn resolve_style(
     }
 
     let partial = match &spec.classification {
+        Classification::ContinuousNormalized {
+            attribute,
+            normalization,
+        } => resolve_normalized(&selected, attribute, normalization, &spec.ramp)?,
         Classification::Single => resolve_single(&selected, &spec.ramp)?,
         Classification::Categorical { attribute } => {
             resolve_categorical(&selected, attribute, &spec.ramp)?
@@ -299,6 +319,7 @@ pub fn resolve_style(
     };
 
     Ok(ResolvedStylePlan {
+        normalization: partial.normalization,
         filter_outcomes,
         assignments: partial.assignments,
         legend: partial.classes.clone(),
@@ -309,6 +330,7 @@ pub fn resolve_style(
 }
 
 struct PartialPlan {
+    normalization: Option<ResolvedNormalization>,
     assignments: Vec<FeatureStyleAssignment>,
     classes: Vec<StyleClass>,
     requested_class_count: Option<usize>,
@@ -337,6 +359,7 @@ fn resolve_single(
         })
         .collect();
     Ok(PartialPlan {
+        normalization: None,
         assignments,
         classes,
         requested_class_count: None,
@@ -399,6 +422,7 @@ fn resolve_categorical(
         })
         .collect::<Result<Vec<_>, StylingError>>()?;
     Ok(PartialPlan {
+        normalization: None,
         assignments,
         classes,
         requested_class_count: None,
@@ -507,6 +531,7 @@ fn resolve_numeric(
         })
         .collect::<Result<Vec<_>, StylingError>>()?;
     Ok(PartialPlan {
+        normalization: None,
         assignments,
         classes,
         requested_class_count: requested,
@@ -558,6 +583,7 @@ fn resolve_continuous(
         })
         .collect::<Result<Vec<_>, StylingError>>()?;
     Ok(PartialPlan {
+        normalization: None,
         assignments,
         classes: Vec::new(),
         requested_class_count: None,
@@ -694,4 +720,41 @@ fn format_numeric_label(lower: f64, upper: f64, first: bool) -> String {
     } else {
         format!("({lower}, {upper}]")
     }
+}
+
+fn resolve_normalized(
+    selected: &[&FeatureRecord],
+    attribute: &str,
+    policy: &NumericNormalization,
+    ramp: &ColorRamp,
+) -> Result<PartialPlan, StylingError> {
+    let values = selected_numeric_values(selected, attribute)?;
+    let observed = values
+        .iter()
+        .filter_map(|(_, value)| *value)
+        .collect::<Vec<_>>();
+    let normalization = ResolvedNormalization::resolve(&observed, policy, ramp)?;
+    let assignments = values
+        .into_iter()
+        .map(|(feature, value)| {
+            let position = value
+                .map(|value| normalization.position(value))
+                .transpose()?;
+            Ok(FeatureStyleAssignment {
+                feature_id: feature.feature_id().to_owned(),
+                class_index: None,
+                color: position
+                    .map(|position| normalization.sample_color(position))
+                    .transpose()?,
+                ramp_position: position,
+            })
+        })
+        .collect::<Result<Vec<_>, StylingError>>()?;
+    Ok(PartialPlan {
+        normalization: Some(normalization),
+        assignments,
+        classes: Vec::new(),
+        requested_class_count: None,
+        effective_class_count: 0,
+    })
 }

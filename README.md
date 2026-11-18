@@ -126,3 +126,13 @@ The crate's MSRV is Rust 1.92 so it remains consumable by the current
 `vycorporation/rerun` 0.34 workspace.
 The crate uses Rust 2024, forbids unsafe Rust, and is licensed under either
 Apache-2.0 or MIT.
+
+### Normalized continuous domains
+
+For continuous colors with explicit bounds, percentile trimming, sample-standard-
+deviation ranges or positive logarithmic scaling, use
+`Classification::ContinuousNormalized`. The resolved plan retains validated
+numeric-domain and ramp metadata for consumer-owned gradient legends. Existing
+continuous/discrete requests are unchanged. See the
+[normalization contract](docs/design/numeric-normalization.md); renderer/CLI
+integration and end-to-end Java comparison are separate consumer work.
